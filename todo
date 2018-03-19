@@ -1,0 +1,9 @@
+- escape "
+- unicode
+- documentation?
+- save/load progress
+- param error checking
+- params for save rate (once saving implemented)
+- params for buff size
+- validate smartly (know to skip whole groups of modifications/etc... if guaranteed to not succeed)
+

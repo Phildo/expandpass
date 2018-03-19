@@ -1,0 +1,56 @@
+< sequence
+{ option
+" content
+[ deviation APPLIES TO PREVIOUS GROUPING
+
+IMPLICIT <> around whole thing
+
+"banana"
+banana
+
+<
+"apple"
+"orange"
+>
+appleorange
+
+{
+"apple"
+"orange"
+}
+apple
+orange
+
+{
+"apple"
+"orange"
+}
+"123"
+apple123
+orange123
+
+{
+"apple"
+"orange"
+}
+{
+"123"
+"abc"
+}
+apple123
+appleabc
+orange123
+orangeabc
+
+{
+"apple"
+}
+[
+s1"abcdefghijklmnopqrstuvwxyz"
+]
+apple
+bpple
+cpple
+...
+applz
+
