@@ -1,17 +1,20 @@
 expandpass is a simple string-expander. Useful for cracking passwords you kinda-remember.
 
 
-#HOW IT WORKS:
+# HOW IT WORKS:
 
-You define a seed file, and give it to expandpass as an argument (default is "seed.txt")
+You define a seed file, and give it to expandpass as an argument (default is `seed.txt`)
+
 `expandpass -i path/to/seed.txt`
 
-It outputs the full expansion of that seed to stdout (or, you can define an output file with `-o path/to/output.txt`).
+It outputs the full expansion of that seed to stdout, or you can define an output file with
+
+`expandpass -o path/to/output.txt`
 
 
-#THE SEED:
+# THE SEED:
 
-The most basic atom of a seed is a String, specified with ""
+The most basic atom of a seed is a *String*, specified with `""`
 
 Seed File:
 ```
@@ -23,7 +26,7 @@ Output:
 banana
 ```
 
-The next layer up is an Option Group, specified by {}
+The next layer up is an *Option Group*, specified by `{}`
 
 Seed File:
 ```
@@ -39,7 +42,7 @@ banana
 apple
 ```
 
-Next, Sequence Group, specified with <>
+Next, *Sequence Group*, specified with `<>`
 
 Seed File:
 ```
@@ -54,7 +57,7 @@ Output:
 bananaapple
 ```
 
-Finally, a Permutation Group, specified with ()
+Finally, a *Permutation Group*, specified with `()`
 
 Seed File:
 ```
@@ -70,7 +73,7 @@ bananaapple
 applebanana
 ```
 
-Then, as a special case, is the Modifier, specified with []
+Then, as a special case, is the *Modifier*, specified with `[]`
 Note- a modifier applies to the grouping _before_ the modifier. (See MODIFIER section for details w/ syntax)
 
 Seed File:
@@ -112,15 +115,15 @@ Seed File:
 Output:
 (run it yourself! it's already in `seed.txt`- it should output 497 lines)
 
-NOTE- the entire seed.txt file has a default implicit Sequence Group <> specified around it.
+NOTE- the entire seed.txt file has a default implicit Sequence Group `<>` specified around it.
 
 
-#MODIFIERS:
+# MODIFIERS:
 
 There are 4 types of modifications: 'i'njections, 's'ubstitutions, 'd'eletions, and s'm'art substitutions.
 For the sake of simplicity, I'll assume each modification needs to be on its own line (though that isn't syntactually enforced)
 
-You specify that you want to modify the previously specified group (or string) with [], and you specify what the modification should be within.
+You specify that you want to modify the previously specified group (or string) with `[]`, and you specify what the modification should be within.
 For example, if I wanted all instances of "banana" but with one character deleted, I would put in my seed file:
 
 ```
@@ -271,12 +274,12 @@ d1
 ]
 ```
 
-will ensure "banana" is printed unmodified once before going into the modifications.
+will ensure `banana` is printed unmodified once before going into the modifications.
 
-NOTE: The - is a guaranteed single-modification (doesn't need further delineation). So you could identically specify "banana"[-d1]
+NOTE: The - is a guaranteed single-modification (doesn't need further delineation). So you could identically specify `"banana"[-d1]`
 
 
-#FURTHER INFO
+# FURTHER INFO
 
-See `todo.txt` for things that need doing. One (embarassing) important thing is, right now, you can't specify " as part of a password. So I need to build in escaping them (likely with just a \).
+See `todo.txt` for things that need doing. One (embarassing) important thing is, right now, you can't specify `"` as part of a password. So I need to build in escaping them (likely with just a \).
 
