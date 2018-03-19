@@ -79,8 +79,7 @@ struct parse_error
   char *txt;
 };
 
-//1MB
-int buff_len = 1024*1024;
+int buff_len = 1024*1024; //1MB
 int max_pass_len = 300;
 int max_read_line_len = 1024;
 char *devnull;
@@ -102,8 +101,6 @@ int n_cached_permute_indices;
 FILE *fp;
 char *buff;
 int buff_i;
-char *valid_chars;
-int n_valid_chars;
 
 char *in_file = "seed.txt";
 char *out_file = 0;
