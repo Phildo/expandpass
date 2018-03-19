@@ -14,7 +14,7 @@ It outputs the full expansion of that seed to stdout, or you can define an outpu
 
 # THE SEED:
 
-The most basic atom of a seed is a *String*, specified with `""`
+The most basic atom of a seed is a **String**, specified with `""`
 
 Seed File:
 ```
@@ -26,7 +26,7 @@ Output:
 banana
 ```
 
-The next layer up is an *Option Group*, specified by `{}`
+The next layer up is an **Option Group**, specified by `{}`
 
 Seed File:
 ```
@@ -42,7 +42,7 @@ banana
 apple
 ```
 
-Next, *Sequence Group*, specified with `<>`
+Next, **Sequence Group**, specified with `<>`
 
 Seed File:
 ```
@@ -57,7 +57,7 @@ Output:
 bananaapple
 ```
 
-Finally, a *Permutation Group*, specified with `()`
+Finally, a **Permutation Group**, specified with `()`
 
 Seed File:
 ```
@@ -73,8 +73,8 @@ bananaapple
 applebanana
 ```
 
-Then, as a special case, is the *Modifier*, specified with `[]`
-Note- a modifier applies to the grouping _before_ the modifier. (See MODIFIER section for details w/ syntax)
+Then, as a special case, is the **Modifier**, specified with `[]`
+Note- a modifier applies to the grouping *before* the modifier. (See MODIFIER section for details w/ syntax)
 
 Seed File:
 ```
