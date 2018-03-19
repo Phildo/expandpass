@@ -120,7 +120,7 @@ NOTE- the entire seed.txt file has a default implicit Sequence Group `<>` specif
 
 # MODIFIERS:
 
-There are 4 types of modifications: 'i'njections, 's'ubstitutions, 'd'eletions, and s'm'art substitutions.
+There are 4 types of modifications: **'i'njections**, **'s'ubstitutions**, **'d'eletions**, and **s'm'art substitutions**.
 For the sake of simplicity, I'll assume each modification needs to be on its own line (though that isn't syntactually enforced)
 
 You specify that you want to modify the previously specified group (or string) with `[]`, and you specify what the modification should be within.
