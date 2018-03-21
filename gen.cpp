@@ -674,6 +674,29 @@ void preprocess_group(group *g, group *root)
     }
   }
 
+  //collapse like-parent/child options/sequences
+  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION)
+  {
+    for(int i = 0; i < g->n; i++)
+    {
+      group *c = &g->childs[i];
+      if(c->n_mods == 0 && c->type == g->type)
+      {
+        g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
+        c = &g->childs[i]; //NEED TO RE-ASSIGN C, AS G HAS BEEN REALLOCED
+        group *oc = c->childs;
+        int ocn = c->n;
+        for(int j = 0; j < g->n-i; j++)
+          g->childs[g->n-1+ocn-j-1] = g->childs[g->n-1-j];
+        for(int j = 0; j < ocn; j++)
+          g->childs[i+j] = oc[j];
+        free(oc);
+        g->n += ocn-1;
+        i--;
+      }
+    }
+  }
+
   //alloc/init modifications; collapse gamuts
   modification *m;
   for(int i = 0; i < g->n_mods; i++)
