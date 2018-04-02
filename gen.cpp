@@ -245,7 +245,7 @@ char smart_sub(int i, char key)
     case 'i': c = "I!1"; break;
     case 'j': c = "J"; break;
     case 'k': c = "K"; break;
-    case 'l': c = "L!Ii71"; break;
+    case 'l': c = "L!71"; break;
     case 'm': c = "M"; break;
     case 'n': c = "N"; break;
     case 'o': c = "O0"; break;
@@ -271,7 +271,7 @@ char smart_sub(int i, char key)
     case 'I': c = "i!1"; break;
     case 'J': c = "j"; break;
     case 'K': c = "k"; break;
-    case 'L': c = "l!Ii71"; break;
+    case 'L': c = "l!71"; break;
     case 'M': c = "m"; break;
     case 'N': c = "n"; break;
     case 'O': c = "o0"; break;
@@ -292,9 +292,9 @@ char smart_sub(int i, char key)
     case '3': c = "eE"; break;
     case '4': c = "Aa"; break;
     case '5': c = "Ss"; break;
-    case '6': c = ""; break;
+    //case '6': c = ""; break;
     case '7': c = "Ll"; break;
-    case '8': c = ""; break;
+    //case '8': c = ""; break;
     case '9': c = "g"; break;
     default: stub[0] = key; c = stub; break;
   }
