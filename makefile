@@ -8,7 +8,7 @@ frun:
 	./expandpass
 
 debug:
-	gcc -Wno-write-strings -ggdb3 gen.cpp -o expandpass && gdb ./expandpass
+	gcc -Wno-write-strings -ggdb3 gen.cpp -o expandpass && lldb ./expandpass
 
 expandpass: gen.cpp seed.txt
 	gcc -Wno-write-strings gen.cpp -o expandpass

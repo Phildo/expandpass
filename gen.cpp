@@ -92,6 +92,8 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
 int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, parse_error *e);
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 group *parse();
+long long int estimate_group(group *g);
+int approximate_length_group(group *g);
 int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
 int parse_number(char *b, int *n);
 
@@ -102,48 +104,73 @@ FILE *fp;
 char *buff;
 int buff_i;
 
-char *in_file = "seed.txt";
-char *out_file = 0;
+char *seed_file = "seed.txt";
+char *password_file = 0;
+char *progress_file = "seed.progress";
+int estimate = 0;
+int resume = 0;
 int validate = 0;
 
 int main(int argc, char **argv)
 {
-  int i = 0;
+  int i = 1;
   while(i < argc)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      printf("usage: expandpass [--help] [-i input_seed.txt] [-o output_passwords.txt] [-v #]\n");
-      printf("--help shows this menu\n");
-      printf("-i specifies seed file (default \"seed.txt\" if blank)\n");
-      printf("   (see readme for seed syntax)\n");
-      printf("-o specifies output file (default stdout if blank)\n");
-      printf("-v specifies verification before output; # is minimum password length\n");
-      printf("   note: any verification > 0 will also verify that there is at least\n");
-      printf("         1+ char A-Z, 1+ a-z, 1+ 0-9, and 1+ other. (cmd args coming soon)\n");
-      printf("   (default is no verification)\n");
+      fprintf(stdout,"usage: expandpass [--help] [-i input_seed.txt] [-o output_passwords.txt] [-v #]\n");
+      fprintf(stdout,"--help shows this menu\n");
+      fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
+      fprintf(stdout,"   (see readme for seed syntax)\n");
+      fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
+      fprintf(stdout,"-v specifies verification before output; # is minimum password length\n");
+      fprintf(stdout,"   note: any verification > 0 will also verify that there is at least\n");
+      fprintf(stdout,"         1+ char A-Z, 1+ a-z, 1+ 0-9, and 1+ other. (cmd args coming soon)\n");
+      fprintf(stdout,"   (default is no verification)\n");
+      fprintf(stdout,"-r specifies to resume from specified (or not) progress file (default \"seed.progress\" if blank)\n");
+      fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       exit(0);
     }
-    if(strcmp(argv[i],"-o") == 0)
+    else if(strcmp(argv[i],"-o") == 0)
     {
       i++;
-      out_file = argv[i];
+      password_file = argv[i];
     }
-    if(strcmp(argv[i],"-i") == 0)
+    else if(strcmp(argv[i],"-i") == 0)
     {
       i++;
-      in_file = argv[i];
+      seed_file = argv[i];
     }
-    if(strcmp(argv[i],"-v") == 0)
+    else if(strcmp(argv[i],"-v") == 0)
     {
       i++;
       parse_number(argv[i], &validate);
+    }
+    else if(strcmp(argv[i],"-r") == 0)
+    {
+      resume = 1;
+      if(i+1 < argc) { i++; progress_file = argv[i]; }
+    }
+    else if(strcmp(argv[i],"--estimate") == 0)
+    {
+      estimate = 1;
+    }
+    else
+    {
+      fprintf(stderr,"error: unrecognized argument \"%s\"\n",argv[i]);
     }
     i++;
   }
 
   n_cached_permute_indices = 0;
   group *g = parse();
+
+  if(estimate)
+  {
+    long long int e = estimate_group(g);
+    fprintf(stdout,"estimated output for seed file (%s): %lld\n",seed_file,e);
+    exit(0);
+  }
 
   buff = (char *)malloc(sizeof(char)*buff_len);
   buff_i = 0;
@@ -155,10 +182,11 @@ int main(int argc, char **argv)
   char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
   for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
 
-  if(out_file)
+  if(!estimate && password_file)
   {
-    fp = fopen(out_file, "w+");
-    if(!fp) { fprintf(stderr,"Error opening output file: %s\n",out_file); exit(1); }
+    if(resume) fp = fopen(password_file, "a");
+    else       fp = fopen(password_file, "w");
+    if(!fp) { fprintf(stderr,"Error opening output file: %s\n",password_file); exit(1); }
   }
   else fp = stdout;
 
@@ -392,6 +420,8 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         break;
       case GROUP_TYPE_NULL:
         ;
+        break;
+      default: //appease compiler
         break;
     }
   }
@@ -790,8 +820,8 @@ group *parse()
   FILE *fp;
   char *buff;
 
-  fp = fopen(in_file, "r");
-  if(!fp) { fprintf(stderr,"Error opening seed file: %s\n",in_file); exit(1); }
+  fp = fopen(seed_file, "r");
+  if(!fp) { fprintf(stderr,"Error opening seed file: %s\n",seed_file); exit(1); }
   buff = (char *)malloc(sizeof(char)*max_read_line_len);
 
   parse_error e;
@@ -1122,7 +1152,93 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p)
       *buff_p = buff+g->n;
       inert = smodify_group(g, inert, lockholder, buff, buff_p);
       break;
+    default: //appease compiler
+      break;
   }
   return inert;
+}
+
+int approximate_length_group(group *g)
+{
+  int l = 0;
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+      l = 0;
+      for(int i = 0; i < g->n; i++)
+        l += approximate_length_group(&g->childs[i]);
+      break;
+    case GROUP_TYPE_OPTION:
+      l = 0;
+      for(int i = 0; i < g->n; i++)
+        l += approximate_length_group(&g->childs[i]);
+      l /= g->n;
+      break;
+    case GROUP_TYPE_PERMUTE:
+      l = 0;
+      for(int i = 0; i < g->n; i++)
+        l += approximate_length_group(&g->childs[i]);
+      break;
+    case GROUP_TYPE_CHARS:
+      l = g->n;
+      break;
+    default: //appease compile
+      break;
+  }
+  return l;
+}
+
+long long int estimate_group(group *g)
+{
+  long long int e = 1;
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+      e = 1;
+      for(int i = 0; i < g->n; i++)
+        e *= estimate_group(&g->childs[i]);
+      break;
+    case GROUP_TYPE_OPTION:
+      e = 0;
+      for(int i = 0; i < g->n; i++)
+        e += estimate_group(&g->childs[i]);
+      break;
+    case GROUP_TYPE_PERMUTE:
+      e = 1;
+      for(int i = 0; i < g->n; i++)
+      {
+        e *= estimate_group(&g->childs[i]);
+        e *= (i+1);
+      }
+      break;
+    case GROUP_TYPE_CHARS:
+      e = 1;
+      break;
+    default: //appease compile
+      break;
+  }
+  if(g->n_mods)
+  {
+    int l = approximate_length_group(g);
+    long long int accrue_e = 0;
+    long long int base_e = e;
+    e = 1;
+    for(int i = 0; i < g->n_mods; i++)
+    {
+      modification *m = &g->mods[i];
+      for(int j = 0; j < m->n_smart_substitutions; j++)
+        if(l+1-j > 0) e *= (l-j)*3; //assuming 3 is average smart sub
+      for(int j = 0; j < m->n_injections; j++)
+        if(l+1-j-m->n_smart_substitutions > 0) e *= (l+1-j)*m->n;
+      for(int j = 0; j < m->n_substitutions; j++)
+        if(l-j-m->n_smart_substitutions-m->n_injections > 0) e *= (l-m->n_smart_substitutions-j)*m->n;
+      for(int j = 0; j < m->n_deletions; j++)
+        if(l-j-m->n_smart_substitutions-m->n_injections-m->n_substitutions > 0) e *= l-m->n_smart_substitutions-m->n_substitutions-j;
+      accrue_e += e*base_e;
+      e = 1;
+    }
+    e = accrue_e;
+  }
+  return e;
 }
 
