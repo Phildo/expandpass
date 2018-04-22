@@ -1226,6 +1226,26 @@ int approximate_length_group(group *g)
   return l;
 }
 
+unsigned long long int ppow(int choose, int option)
+{
+  unsigned long long int t = option;
+  for(int i = 0; i < choose-1; i++)
+    t *= option;
+  return t;
+}
+
+unsigned long long int permcomb(int len, int choose, int option)
+{
+  if(choose == 1) return option*len;
+  if(len == choose) return ppow(choose,option);
+
+  unsigned long long int t = 0;
+  for(int len_i = len-1; len_i >= (choose-1); len_i--)
+    t += permcomb(len_i, (choose-1), option)*option;
+
+  return t;
+}
+
 unsigned long long int estimate_group(group *g)
 {
   unsigned long long int e = 1;
@@ -1264,14 +1284,10 @@ unsigned long long int estimate_group(group *g)
     for(int i = 0; i < g->n_mods; i++)
     {
       modification *m = &g->mods[i];
-      for(int j = 0; j < m->n_smart_substitutions; j++)
-        if(l+1-j > 0) e *= (l-j)*3; //assuming 3 is average smart sub
-      for(int j = 0; j < m->n_injections; j++)
-        if(l+1-j-m->n_smart_substitutions > 0) e *= (l+1-j)*m->n;
-      for(int j = 0; j < m->n_substitutions; j++)
-        if(l-j-m->n_smart_substitutions-m->n_injections > 0) e *= (l-m->n_smart_substitutions-j)*m->n;
-      for(int j = 0; j < m->n_deletions; j++)
-        if(l-j-m->n_smart_substitutions-m->n_injections-m->n_substitutions > 0) e *= l-m->n_smart_substitutions-m->n_substitutions-j;
+      if(l > 0                                             && m->n_smart_substitutions > 0) e *= permcomb(l,                                             m->n_smart_substitutions, 2); //assuming 2 is average smart sub
+      if(l+m->n_injections > 0                             && m->n_injections          > 0) e *= permcomb(l+m->n_injections,                             m->n_injections,          m->n);
+      if(l-m->n_smart_substitutions > 0                    && m->n_substitutions       > 0) e *= permcomb(l-m->n_smart_substitutions,                    m->n_substitutions,       m->n);
+      if(l-m->n_smart_substitutions-m->n_substitutions > 0 && m->n_deletions           > 0) e *= permcomb(l-m->n_smart_substitutions-m->n_substitutions, m->n_deletions,           1);
       accrue_e += e*base_e;
       e = 1;
     }
