@@ -92,9 +92,13 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
 int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, parse_error *e);
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 group *parse();
-long long int estimate_group(group *g);
+unsigned long long int estimate_group(group *g);
 int approximate_length_group(group *g);
 int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
+void checkpoint_group(group *g, FILE *fp);
+void resume_group(group *g, FILE *fp);
+void checkpoint_to_file(group *g);
+void resume_from_file(group *g);
 int parse_number(char *b, int *n);
 
 int ***cache_permute_indices;
@@ -107,9 +111,12 @@ int buff_i;
 char *seed_file = "seed.txt";
 char *password_file = 0;
 char *progress_file = "seed.progress";
+char *checkpoint_file = "seed.progress";
+char checkpoint_file_bak[512];
 int estimate = 0;
 int resume = 0;
 int validate = 0;
+int checkpoint = 0;
 
 int main(int argc, char **argv)
 {
@@ -118,8 +125,9 @@ int main(int argc, char **argv)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      fprintf(stdout,"usage: expandpass [--help] [-i input_seed.txt] [-o output_passwords.txt] [-v #]\n");
+      fprintf(stdout,"usage: expandpass [--help] [--estimate] [-i input_seed.txt] [-o output_passwords.txt] [-v #] [-c # checkpoint_seed.progress] [-r recovery_seed.progress]\n");
       fprintf(stdout,"--help shows this menu\n");
+      fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
       fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
@@ -127,9 +135,13 @@ int main(int argc, char **argv)
       fprintf(stdout,"   note: any verification > 0 will also verify that there is at least\n");
       fprintf(stdout,"         1+ char A-Z, 1+ a-z, 1+ 0-9, and 1+ other. (cmd args coming soon)\n");
       fprintf(stdout,"   (default is no verification)\n");
+      fprintf(stdout,"-c specifies how often to checkpoint via progress file (default \"seed.progress\" if blank)\n");
       fprintf(stdout,"-r specifies to resume from specified (or not) progress file (default \"seed.progress\" if blank)\n");
-      fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       exit(0);
+    }
+    else if(strcmp(argv[i],"--estimate") == 0)
+    {
+      estimate = 1;
     }
     else if(strcmp(argv[i],"-o") == 0)
     {
@@ -146,14 +158,16 @@ int main(int argc, char **argv)
       i++;
       parse_number(argv[i], &validate);
     }
+    else if(strcmp(argv[i],"-c") == 0)
+    {
+      i++;
+      parse_number(argv[i], &checkpoint);
+      if(i+1 < argc) { i++; checkpoint_file = argv[i]; }
+    }
     else if(strcmp(argv[i],"-r") == 0)
     {
       resume = 1;
       if(i+1 < argc) { i++; progress_file = argv[i]; }
-    }
-    else if(strcmp(argv[i],"--estimate") == 0)
-    {
-      estimate = 1;
     }
     else
     {
@@ -161,14 +175,21 @@ int main(int argc, char **argv)
     }
     i++;
   }
+  sprintf(checkpoint_file_bak,"%s.bak",checkpoint_file);
 
   n_cached_permute_indices = 0;
   group *g = parse();
 
   if(estimate)
   {
-    long long int e = estimate_group(g);
-    fprintf(stdout,"estimated output for seed file (%s): %lld\n",seed_file,e);
+    unsigned long long int e = estimate_group(g);
+    fprintf(stdout,"estimated output for seed file (%s): %llu\n",seed_file,e);
+    e /= 600000;
+    fprintf(stdout,"%llus @ 600k/s\n",e);
+    e /= 60; //minute
+    e /= 60; //hour
+    e /= 24; //day
+    fprintf(stdout,"%llu days @ 600k/s\n",e);
     exit(0);
   }
 
@@ -182,7 +203,10 @@ int main(int argc, char **argv)
   char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
   for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
 
-  if(!estimate && password_file)
+  if(resume)
+    resume_from_file(g);
+
+  if(password_file)
   {
     if(resume) fp = fopen(password_file, "a");
     else       fp = fopen(password_file, "w");
@@ -193,9 +217,11 @@ int main(int argc, char **argv)
   if(validate)
   {
     int done = 0;
+    long long int e = 0;
     while(!done)
     {
       done = !sprint_group(g, 0, lockholder, &passholder_p);
+      e++;
       *passholder_p = '\0';
       if(passholder_p-passholder >= validate)
       {
@@ -215,17 +241,29 @@ int main(int argc, char **argv)
         if(has_upp+has_low+has_num+has_sym == 4) append_password(passholder);
       }
       passholder_p = passholder;
+      if(checkpoint && e >= checkpoint)
+      {
+        checkpoint_to_file(g);
+        e = 0;
+      }
     }
   }
   else
   {
     int done = 0;
+    long long int e = 0;
     while(!done)
     {
       done = !sprint_group(g, 0, lockholder, &passholder_p);
+      e++;
       *passholder_p = '\0';
       append_password(passholder);
       passholder_p = passholder;
+      if(checkpoint && e >= checkpoint)
+      {
+        checkpoint_to_file(g);
+        e = 0;
+      }
     }
   }
 
@@ -1188,9 +1226,9 @@ int approximate_length_group(group *g)
   return l;
 }
 
-long long int estimate_group(group *g)
+unsigned long long int estimate_group(group *g)
 {
-  long long int e = 1;
+  unsigned long long int e = 1;
   switch(g->type)
   {
     case GROUP_TYPE_SEQUENCE:
@@ -1220,8 +1258,8 @@ long long int estimate_group(group *g)
   if(g->n_mods)
   {
     int l = approximate_length_group(g);
-    long long int accrue_e = 0;
-    long long int base_e = e;
+    unsigned long long int accrue_e = 0;
+    unsigned long long int base_e = e;
     e = 1;
     for(int i = 0; i < g->n_mods; i++)
     {
@@ -1240,5 +1278,100 @@ long long int estimate_group(group *g)
     e = accrue_e;
   }
   return e;
+}
+
+void checkpoint_to_file(group *g)
+{
+  FILE *fp;
+  fp = fopen(checkpoint_file_bak, "w");
+  if(!fp) { fprintf(stderr,"Error opening checkpoint bak file: %s\n",password_file); exit(1); }
+  checkpoint_group(g,fp);
+  fclose(fp);
+
+  fp = fopen(checkpoint_file, "w");
+  if(!fp) { fprintf(stderr,"Error opening checkpoint file: %s\n",password_file); exit(1); }
+  checkpoint_group(g,fp);
+  fclose(fp);
+}
+
+void checkpoint_group(group *g, FILE *fp)
+{
+  fprintf(fp,"%d\n",g->i);
+  fprintf(fp,"%d\n",g->mod_i);
+  if(g->type != GROUP_TYPE_CHARS)
+  {
+    for(int i = 0; i < g->n; i++)
+      checkpoint_group(&g->childs[i],fp);
+  }
+  for(int i = 0; i < g->n_mods; i++)
+  {
+    modification *m = &g->mods[i];
+    for(int j = 0; j < m->n_injections; j++)
+    {
+      fprintf(fp,"%d\n",m->injection_i[j]);
+      fprintf(fp,"%d\n",m->injection_sub_i[j]);
+    }
+    for(int j = 0; j < m->n_smart_substitutions; j++)
+    {
+      fprintf(fp,"%d\n",m->smart_substitution_i[j]);
+      fprintf(fp,"%c\n",m->smart_substitution_i_c[j]);
+      fprintf(fp,"%d\n",m->smart_substitution_sub_i[j]);
+    }
+    for(int j = 0; j < m->n_substitutions; j++)
+    {
+      fprintf(fp,"%d\n",m->substitution_i[j]);
+      fprintf(fp,"%d\n",m->substitution_sub_i[j]);
+    }
+    for(int j = 0; j < m->n_deletions; j++)
+    {
+      fprintf(fp,"%d\n",m->deletion_i[j]);
+    }
+    fprintf(fp,"%d\n",m->nothing_i);
+  }
+}
+
+void resume_from_file(group *g)
+{
+  FILE *fp;
+  fp = fopen(progress_file, "r");
+  if(!fp) { fprintf(stderr,"Error opening progress file: %s\n",password_file); exit(1); }
+  resume_group(g,fp);
+  fclose(fp);
+}
+
+void resume_group(group *g, FILE *fp)
+{
+  fscanf(fp,"%d\n",&g->i);
+  fscanf(fp,"%d\n",&g->mod_i);
+  if(g->type != GROUP_TYPE_CHARS)
+  {
+    for(int i = 0; i < g->n; i++)
+      resume_group(&g->childs[i],fp);
+  }
+  for(int i = 0; i < g->n_mods; i++)
+  {
+    modification *m = &g->mods[i];
+    for(int j = 0; j < m->n_injections; j++)
+    {
+      fscanf(fp,"%d\n",&m->injection_i[j]);
+      fscanf(fp,"%d\n",&m->injection_sub_i[j]);
+    }
+    for(int j = 0; j < m->n_smart_substitutions; j++)
+    {
+      fscanf(fp,"%d\n",&m->smart_substitution_i[j]);
+      fscanf(fp,"%c\n",&m->smart_substitution_i_c[j]);
+      fscanf(fp,"%d\n",&m->smart_substitution_sub_i[j]);
+    }
+    for(int j = 0; j < m->n_substitutions; j++)
+    {
+      fscanf(fp,"%d\n",&m->substitution_i[j]);
+      fscanf(fp,"%d\n",&m->substitution_sub_i[j]);
+    }
+    for(int j = 0; j < m->n_deletions; j++)
+    {
+      fscanf(fp,"%d\n",&m->deletion_i[j]);
+    }
+    fscanf(fp,"%d\n",&m->nothing_i);
+  }
 }
 
