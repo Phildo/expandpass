@@ -114,6 +114,7 @@ char *progress_file = "seed.progress";
 char *checkpoint_file = "seed.progress";
 char checkpoint_file_bak[512];
 int estimate = 0;
+int estimate_rate = 600000;
 int resume = 0;
 int validate = 0;
 int checkpoint = 0;
@@ -142,6 +143,7 @@ int main(int argc, char **argv)
     else if(strcmp(argv[i],"--estimate") == 0)
     {
       estimate = 1;
+      if(i+1 < argc) { i++; if(argv[i][0] == '@') parse_number(argv[i]+1, &estimate_rate); else i--; }
     }
     else if(strcmp(argv[i],"-o") == 0)
     {
@@ -183,13 +185,15 @@ int main(int argc, char **argv)
   if(estimate)
   {
     unsigned long long int e = estimate_group(g);
-    fprintf(stdout,"estimated output for seed file (%s): %llu\n",seed_file,e);
-    e /= 600000;
-    fprintf(stdout,"%llus @ 600k/s\n",e);
+    fprintf(stdout,"estimated output for seed file (%s): %llu @ %d/s\n",seed_file,e,estimate_rate);
+    e /= estimate_rate;
+    fprintf(stdout,"%llus\n",e);
     e /= 60; //minute
+    fprintf(stdout,"%llum\n",e);
     e /= 60; //hour
+    fprintf(stdout,"%lluh\n",e);
     e /= 24; //day
-    fprintf(stdout,"%llu days @ 600k/s\n",e);
+    fprintf(stdout,"%llu days\n",e);
     exit(0);
   }
 
