@@ -174,6 +174,7 @@ int main(int argc, char **argv)
     else
     {
       fprintf(stderr,"error: unrecognized argument \"%s\"\n",argv[i]);
+      exit(1);
     }
     i++;
   }
@@ -1239,6 +1240,23 @@ float approximate_length_group(group *g)
     default: //appease compile
       break;
   }
+  if(g->n_mods)
+  {
+    float accrue_e = 0;
+    int e = 0;
+    for(int i = 0; i < g->n_mods; i++)
+    {
+      modification *m = &g->mods[i];
+      //if(l > 0                                             && m->n_smart_substitutions > 0) ; //do nothing
+      if(l+m->n_injections > 0                             && m->n_injections          > 0) e += m->n_injections;
+      //if(l-m->n_smart_substitutions > 0                    && m->n_substitutions       > 0) ; //do nothing
+      if(l-m->n_smart_substitutions-m->n_substitutions > 0 && m->n_deletions           > 0) e -= m->n_deletions;
+      accrue_e += e;
+      e = 0;
+    }
+    l += accrue_e/g->n_mods;
+  }
+
   return l;
 }
 
