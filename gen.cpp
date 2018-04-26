@@ -185,15 +185,26 @@ int main(int argc, char **argv)
   if(estimate)
   {
     unsigned long long int e = estimate_group(g);
+    unsigned long long int d = e;
+    unsigned long long int h = e;
+    unsigned long long int m = e;
+    unsigned long long int s = e;
     fprintf(stdout,"estimated output for seed file (%s): %llu @ %d/s\n",seed_file,e,estimate_rate);
-    e /= estimate_rate;
-    fprintf(stdout,"%llus\n",e);
-    e /= 60; //minute
-    fprintf(stdout,"%llum\n",e);
-    e /= 60; //hour
-    fprintf(stdout,"%lluh\n",e);
-    e /= 24; //day
-    fprintf(stdout,"%llu days\n",e);
+    d /= estimate_rate;
+    h /= estimate_rate;
+    m /= estimate_rate;
+    s /= estimate_rate;
+    d /= 60; //minute
+    h /= 60;
+    m /= 60;
+    d /= 60; //hour
+    h /= 60;
+    d /= 24; //day
+    if(d) { fprintf(stdout,"%llud ",d); h -= d*24; m -= d*24*60; s -= d*24*60*60; }
+    if(h) { fprintf(stdout,"%lluh ",h);            m -= h*60;    s -= h*60*60; }
+    if(m) { fprintf(stdout,"%llum ",m);                          s -= m*60; }
+    if(s) { fprintf(stdout,"%llus ",s); ; }
+    fprintf(stdout,"\n");
     exit(0);
   }
 
