@@ -93,7 +93,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
-int approximate_length_group(group *g);
+float approximate_length_group(group *g);
 int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
 void checkpoint_group(group *g, FILE *fp);
 void resume_group(group *g, FILE *fp);
@@ -204,6 +204,7 @@ int main(int argc, char **argv)
     if(h) { fprintf(stdout,"%lluh ",h);            m -= h*60;    s -= h*60*60; }
     if(m) { fprintf(stdout,"%llum ",m);                          s -= m*60; }
     if(s) { fprintf(stdout,"%llus ",s); ; }
+    if(d+h+m+s <= 0) { fprintf(stdout,"0s "); }
     fprintf(stdout,"\n");
     exit(0);
   }
@@ -1211,9 +1212,9 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p)
   return inert;
 }
 
-int approximate_length_group(group *g)
+float approximate_length_group(group *g)
 {
-  int l = 0;
+  float l = 0;
   switch(g->type)
   {
     case GROUP_TYPE_SEQUENCE:
