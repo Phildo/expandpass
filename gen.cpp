@@ -93,7 +93,8 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
-float approximate_length_group(group *g);
+float approximate_length_premodified_group(group *g);
+float approximate_length_modified_group(group *g);
 int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
 void checkpoint_group(group *g, FILE *fp);
 void resume_group(group *g, FILE *fp);
@@ -1213,7 +1214,7 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p)
   return inert;
 }
 
-float approximate_length_group(group *g)
+float approximate_length_premodified_group(group *g)
 {
   float l = 0;
   switch(g->type)
@@ -1221,18 +1222,18 @@ float approximate_length_group(group *g)
     case GROUP_TYPE_SEQUENCE:
       l = 0;
       for(int i = 0; i < g->n; i++)
-        l += approximate_length_group(&g->childs[i]);
+        l += approximate_length_modified_group(&g->childs[i]);
       break;
     case GROUP_TYPE_OPTION:
       l = 0;
       for(int i = 0; i < g->n; i++)
-        l += approximate_length_group(&g->childs[i]);
+        l += approximate_length_modified_group(&g->childs[i]);
       l /= g->n;
       break;
     case GROUP_TYPE_PERMUTE:
       l = 0;
       for(int i = 0; i < g->n; i++)
-        l += approximate_length_group(&g->childs[i]);
+        l += approximate_length_modified_group(&g->childs[i]);
       break;
     case GROUP_TYPE_CHARS:
       l = g->n;
@@ -1240,6 +1241,12 @@ float approximate_length_group(group *g)
     default: //appease compile
       break;
   }
+  return l;
+}
+
+float approximate_length_modified_group(group *g)
+{
+  float l = approximate_length_premodified_group(g);
   if(g->n_mods)
   {
     float accrue_e = 0;
@@ -1311,7 +1318,7 @@ unsigned long long int estimate_group(group *g)
   }
   if(g->n_mods)
   {
-    int l = approximate_length_group(g);
+    int l = approximate_length_premodified_group(g);
     unsigned long long int accrue_e = 0;
     unsigned long long int base_e = e;
     e = 1;
