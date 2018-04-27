@@ -1,5 +1,6 @@
 expandpass is a simple string-expander. Useful for cracking passwords you kinda-remember.
 
+
 # QUICK EXAMPLE:
 
 Converts a seed file constructed like this:
@@ -19,6 +20,7 @@ banana123!
 
 Note: This had to be a (very) short example- because the output grows very fast!
 
+
 # HOW IT WORKS:
 
 You define a seed file, and give it to expandpass as an argument (default is `seed.txt`)
@@ -28,6 +30,7 @@ You define a seed file, and give it to expandpass as an argument (default is `se
 It outputs the full expansion of that seed to stdout, or you can define an output file with
 
 `expandpass -o path/to/output.txt`
+
 
 # Other Arguments:
 
@@ -40,6 +43,8 @@ It outputs the full expansion of that seed to stdout, or you can define an outpu
 `--estimate [@600000]` Prints an estimation of number passwords generated from a given seed file, and prediction of how long it will take to enumerate through them at specified output/s (default: 600000). Note: approximates subgroup lengths in processing modifications; subject to error. `expandpass --estimate @7000`
 
 `--help` Shows simple usage menu. `expandpass --help`
+
+`--version` Shows version. `expandpass --version`
 
 
 # THE SEED:
@@ -309,6 +314,11 @@ d1
 will ensure `banana` is printed unmodified once before going into the modifications.
 
 NOTE: The - is a guaranteed single-modification (doesn't need further delineation). So you could identically specify `"banana"[-d1]`
+
+
+# LICENSE:
+
+Currently MIT, but honestly, convince me otherwise if that's a bad idea. The point: free to use, modify, distribute.
 
 
 # FURTHER INFO

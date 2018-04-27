@@ -2,6 +2,9 @@
 #include "stdlib.h"
 #include "string.h"
 
+static const int version_maj = 0;
+static const int version_min = 1;
+
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
 static const int ERROR_INVALID_LINE              = 2;
@@ -140,6 +143,7 @@ int main(int argc, char **argv)
     {
       fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-v #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
       fprintf(stdout,"--help shows this menu\n");
+      fprintf(stdout,"--version displays version (%d.%d)\n",version_maj,version_min);
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
@@ -150,6 +154,11 @@ int main(int argc, char **argv)
       fprintf(stdout,"   (default is no verification)\n");
       fprintf(stdout,"-c specifies how often to checkpoint via progress file (default \"seed.progress\" if blank)\n");
       fprintf(stdout,"-r specifies to resume from progress file (default \"seed.progress\" if blank)\n");
+      exit(0);
+    }
+    else if(strcmp(argv[i],"--version") == 0)
+    {
+      fprintf(stdout,"expandpass version %d.%d\n",version_maj,version_min);
       exit(0);
     }
     else if(strcmp(argv[i],"--estimate") == 0)

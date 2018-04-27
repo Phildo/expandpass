@@ -1,21 +1,28 @@
-make: expandpass
+EXE=expandpass
+SRC=gen.cpp
+NOWARN=-Wno-write-strings
+
+make: $(EXE)
 	
 
 run: password.txt
 	
 
 frun:
-	./expandpass
+	./$(EXE)
 
 debug:
-	gcc -Wno-write-strings -ggdb3 gen.cpp -o expandpass && lldb -- ./expandpass
+	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE)
 
-expandpass: gen.cpp seed.txt
-	gcc -Wno-write-strings gen.cpp -o expandpass
+$(EXE): $(SRC) seed.txt
+	gcc $(NOWARN) $(SRC) -o $(EXE)
 
-password.txt: expandpass
-	./expandpass
+password.txt: $(EXE)
+	./$(EXE)
 
 clean:
-	rm expandpass
+	rm $(EXE)
+
+replace: $(EXE)
+	cp $(EXE) `which $(EXE)`
 
