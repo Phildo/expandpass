@@ -11,6 +11,18 @@ It outputs the full expansion of that seed to stdout, or you can define an outpu
 
 `expandpass -o path/to/output.txt`
 
+# Other arguments:
+
+`-v [#]` Verifies certain properties of resultant passwords before outputting. Currently requires: >= 1 lowercase letter, >= 1 uppercase letter, >= 1 number, and >= 1 other (future development is planned to allow specification of each requirement individually). Optional number as argument, setting required minimum length for output. `expandpass -v 10`
+
+`-c # [progress_file]` Sets how often (default: never) to save progress to a progress file ("set Checkpoint"). Will output # passwords before writing progress to a file (also optionally specified; default: "seed.progress"). `expandpass -c 1000000 my_seed.progress`
+
+`-r [checkpoint_file]` Resume from optionally defined (default: seed.progress) progress file. NOTE- a progress file that was created with a different seed file will have unpredictable results. `expandpass -r my_seed.progress`
+
+`--estimate [@600000]` Prints an estimation of number passwords generated from a given seed file, and prediction of how long it will take to enumerate through them at specified output/s (default: 600000). Note: approximates subgroup lengths in processing modifications; subject to error. `expandpass --estimate @7000`
+
+`--help` Shows simple usage menu. `expandpass --help`
+
 
 # THE SEED:
 
@@ -113,9 +125,9 @@ Seed File:
 ```
 
 Output:
-(run it yourself! it's already in `seed.txt`- it should output 497 lines)
+(run it yourself! it's already in `seed.txt`- it should output 496 lines)
 
-NOTE- the entire seed.txt file has a default implicit Sequence Group `<>` specified around it.
+NOTE- seed files have a default implicit Sequence Group `<>` specified around it.
 
 
 # MODIFIERS:

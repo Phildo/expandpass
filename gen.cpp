@@ -127,7 +127,7 @@ int main(int argc, char **argv)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      fprintf(stdout,"usage: expandpass [--help] [--estimate] [-i input_seed.txt] [-o output_passwords.txt] [-v #] [-c # checkpoint_seed.progress] [-r recovery_seed.progress]\n");
+      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-v #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
       fprintf(stdout,"--help shows this menu\n");
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
       fprintf(stdout,"         1+ char A-Z, 1+ a-z, 1+ 0-9, and 1+ other. (cmd args coming soon)\n");
       fprintf(stdout,"   (default is no verification)\n");
       fprintf(stdout,"-c specifies how often to checkpoint via progress file (default \"seed.progress\" if blank)\n");
-      fprintf(stdout,"-r specifies to resume from specified (or not) progress file (default \"seed.progress\" if blank)\n");
+      fprintf(stdout,"-r specifies to resume from progress file (default \"seed.progress\" if blank)\n");
       exit(0);
     }
     else if(strcmp(argv[i],"--estimate") == 0)

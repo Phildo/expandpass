@@ -1,11 +1,10 @@
 - escape "
 - unicode
-- documentation?
-- save/load progress
 - param error checking
-- params for save rate (once saving implemented)
 - params for buff size
 - params for specifying verification
+- check param input (ie, notice -v isn't followed by number, and act accordingly)
 - validate smartly (know to skip whole groups of modifications/etc... if guaranteed to not succeed)
+- --unroll #: notice if subgroup is something complicated, but results in ~< 100 possibilities, and expand to enumerated group (quicker runtime(?))
 - fix error #s so they're not so bizarre
 
