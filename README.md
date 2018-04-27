@@ -1,5 +1,23 @@
 expandpass is a simple string-expander. Useful for cracking passwords you kinda-remember.
 
+# QUICK EXAMPLE:
+
+Converts a seed file constructed like this:
+
+```
+{ "apple" "banana" }( "!" "123" )
+```
+
+to a list of expanded strings, like this:
+
+```
+apple!123
+banana!123
+apple123!
+banana123!
+```
+
+Note: This had to be a (very) short example- because the output grows very fast!
 
 # HOW IT WORKS:
 
@@ -11,7 +29,7 @@ It outputs the full expansion of that seed to stdout, or you can define an outpu
 
 `expandpass -o path/to/output.txt`
 
-# Other arguments:
+# Other Arguments:
 
 `-v [#]` Verifies certain properties of resultant passwords before outputting. Currently requires: >= 1 lowercase letter, >= 1 uppercase letter, >= 1 number, and >= 1 other (future development is planned to allow specification of each requirement individually). Optional number as argument, setting required minimum length for output. `expandpass -v 10`
 
@@ -38,7 +56,7 @@ Output:
 banana
 ```
 
-Note: To include '"' within a string, escape it with \" (example:`"Hello\"World\""` will yield `Hello"World"`). To include '\', escape it with \\.
+Note: To include '"' within a string, escape it with \\" (example:`"Hello\"World\""` will yield `Hello"World"`). To include '\\', escape it with \\.
 
 The next layer up is an **Option Group**, specified by `{}`
 
