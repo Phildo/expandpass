@@ -440,17 +440,25 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         break;
       case GROUP_TYPE_CHARS:
         c = s;
-        while(*c != '"' && *c != '\n' && *c != '\0') c++;
+        while(*c != '"' && *c != '\n' && *c != '\0') { if(*c == '\\') c++; c++; }
         if(*c == '"')
         {
           g->n = (c-s);
           g->chars = (char *)malloc(sizeof(char)*g->n+1);
           c = g->chars;
-          while(*s != '"')
+          while(*s != '"' && *s != '\n' && *s != '\0')
           {
+            if(*s == '\\') { s++; g->n--; }
             *c = *s;
             c++;
             s++;
+          }
+          if(*s != '"')
+          {
+            e->error = 6;
+            if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
+            sprintf(e->txt,"ERROR: Unterminated string\nline %d ( %s )\n",*line_n,buff);
+            return 0;
           }
           s++;
           *c = '\0';
@@ -575,17 +583,25 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
       {
         s++;
         char *c = s;
-        while(*c != '"' && *c != '\n' && *c != '\0') c++;
+        while(*c != '"' && *c != '\n' && *c != '\0') { if(*c == '\\') c++; c++; }
         if(*c == '"')
         {
           m->n = (c-s);
           m->chars = (char *)malloc(sizeof(char)*m->n+1);
           c = m->chars;
-          while(*s != '"')
+          while(*s != '"' && *s != '\n' && *s != '\0')
           {
+            if(*s == '\\') { s++; m->n--; }
             *c = *s;
             c++;
             s++;
+          }
+          if(*s != '"')
+          {
+            e->error = 11;
+            if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
+            sprintf(e->txt,"ERROR: Unterminated modification dictionary\nline %d ( %s )\n",*line_n,buff);
+            return 0;
           }
           s++;
           *c = '\0';

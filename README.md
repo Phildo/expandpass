@@ -38,6 +38,8 @@ Output:
 banana
 ```
 
+Note: To include '"' within a string, escape it with \" (example:`"Hello\"World\""` will yield `Hello"World"`). To include '\', escape it with \\.
+
 The next layer up is an **Option Group**, specified by `{}`
 
 Seed File:
@@ -293,5 +295,5 @@ NOTE: The - is a guaranteed single-modification (doesn't need further delineatio
 
 # FURTHER INFO
 
-See `todo.txt` for things that need doing. One (embarassing) important thing is, right now, you can't specify `"` as part of a password. So I need to build in escaping them (likely with just a \\).
+See `todo.txt` for things that need doing.
 
