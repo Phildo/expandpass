@@ -158,7 +158,7 @@ That means, "try all single deletions on this string", yielding:
 "banan"
 ```
 
-You can also specify to try all single-character substitutions- but to do so, you must also define a dictionary of substitution candidates:
+You can also specify to try all single-character substitutions- but to do so, you must also define a gamut of substitution candidates:
 
 ```
 "banana"
@@ -197,7 +197,7 @@ yeilds:
 "bananaC"
 ```
 
-Smart Substitution looks at the character and tries common substitutions (no dictionary definition required!):
+Smart Substitution looks at the character and tries common substitutions (no gamut definition required!):
 
 ```
 "banana"
@@ -272,7 +272,7 @@ yields:
 ..
 ```
 
-NOTE: new modifications in sequence are delineated by either newlines, or a defined dictionary. So, the previous seed could alternately be specified as:
+NOTE: new modifications in sequence are delineated by either newlines, or a defined gamut. So, the previous seed could alternately be specified as:
 
 ```
 "banana" [ d1 "" s1 "ABC" ]

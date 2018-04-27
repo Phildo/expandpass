@@ -2,6 +2,17 @@
 #include "stdlib.h"
 #include "string.h"
 
+static const int ERROR_NULL                      = 0;
+static const int ERROR_EOF                       = 1;
+static const int ERROR_INVALID_LINE              = 2;
+static const int ERROR_INVALID_STRING            = 3;
+static const int ERROR_INVALID_MODIFICATION      = 4;
+static const int ERROR_UNTERMINATED_STRING       = 5;
+static const int ERROR_UNPARENTED_MODIFICATION   = 6;
+static const int ERROR_INVALID_NULL_MODIFICATION = 7;
+static const int ERROR_MODIFICATION_EMPTY_GAMUT  = 8;
+static const int ERROR_NULL_CHILD                = 9;
+
 enum GROUP_TYPE
 {
   GROUP_TYPE_NULL,
@@ -404,7 +415,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       if(n_chars <= 0)
       {
         *buff = '\0';
-        e->error = 7;
+        e->error = ERROR_EOF;
         sprintf(e->txt,"ERROR: EOF\nline %d\n",*line_n);
         return 0;
       }
@@ -422,7 +433,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
     else
     {
       *b = s;
-      e->error = 1;
+      e->error = ERROR_INVALID_LINE;
       if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
       sprintf(e->txt,"ERROR: Invalid line\nline %d ( %s )\n",*line_n,buff);
       return 0;
@@ -455,7 +466,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
           }
           if(*s != '"')
           {
-            e->error = 6;
+            e->error = ERROR_UNTERMINATED_STRING;
             if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
             sprintf(e->txt,"ERROR: Unterminated string\nline %d ( %s )\n",*line_n,buff);
             return 0;
@@ -465,7 +476,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         }
         else
         {
-          e->error = 4;
+          e->error = ERROR_INVALID_STRING;
           if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
           sprintf(e->txt,"ERROR: Invalid characters after begining string\nline %d ( %s )\n",*line_n,buff);
           return 0;
@@ -474,7 +485,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       case GROUP_TYPE_MODIFICATION: //special case
         if(!prev_g)
         {
-          e->error = 8;
+          e->error = ERROR_UNPARENTED_MODIFICATION;
           if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
           sprintf(e->txt,"ERROR: Modification with no previous group\nline %d ( %s )\n",*line_n,buff);
           return 0;
@@ -523,7 +534,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
       if(n_chars <= 0)
       {
         *buff = '\0';
-        e->error = 7;
+        e->error = ERROR_EOF;
         sprintf(e->txt,"ERROR: EOF\nline %d\n",*line_n);
         return 0;
       }
@@ -548,9 +559,9 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
 
       if(d < 0)
       {
-        e->error = 999;
+        e->error = ERROR_INVALID_NULL_MODIFICATION;
         if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
-        sprintf(e->txt,"ERROR: Invalid line in modification\nline %d ( %s )\n",*line_n,buff);
+        sprintf(e->txt,"ERROR: Invalid null modification\nline %d ( %s )\n",*line_n,buff);
         return 0;
       }
       else
@@ -568,7 +579,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
       else
       {
         *b = s;
-        e->error = 10;
+        e->error = ERROR_INVALID_MODIFICATION;
         if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
         sprintf(e->txt,"ERROR: Invalid line in modification\nline %d ( %s )\n",*line_n,buff);
         return 0;
@@ -598,9 +609,9 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
           }
           if(*s != '"')
           {
-            e->error = 11;
+            e->error = ERROR_UNTERMINATED_STRING;
             if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
-            sprintf(e->txt,"ERROR: Unterminated modification dictionary\nline %d ( %s )\n",*line_n,buff);
+            sprintf(e->txt,"ERROR: Unterminated modification gamut\nline %d ( %s )\n",*line_n,buff);
             return 0;
           }
           s++;
@@ -608,7 +619,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
         }
         else
         {
-          e->error = 4;
+          e->error = ERROR_INVALID_STRING;
           if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
           sprintf(e->txt,"ERROR: Invalid characters after begining gamut\nline %d ( %s )\n",*line_n,buff);
           return 0;
@@ -617,7 +628,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
     }
     if(m->n_substitutions+m->n_injections > 0 && !m->n)
     {
-      e->error = 9;
+      e->error = ERROR_MODIFICATION_EMPTY_GAMUT;
       if(buff[n_chars-1] == '\n') buff[n_chars-1] = '\0'; else buff[n_chars] = '\0';
       sprintf(e->txt,"ERROR: gamut required with substitution or injection\nline %d ( %s )\n",*line_n,buff);
       return 0;
@@ -648,13 +659,13 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
   }
   free(m);
 
-  if(e->error == 7)  return 1; //EOF- close everything
-  if(e->error != 10) return 0; //wut
+  if(e->error == ERROR_EOF) return 1; //close everything
+  if(e->error != ERROR_INVALID_MODIFICATION) return 0; //let "invalid modification" attempt parse as "end modification"
 
   s = *b;
   if(*s != ']')
   {
-    e->error = 5;
+    //e->error; //retain error from stack
     int n_chars = 0; while(buff[n_chars] != '\n' && buff[n_chars] != '\0') n_chars++; n_chars++; buff[n_chars-1] = '\0';
     sprintf(e->txt,"ERROR: Invalid characters within modifiers\nline %d ( %s )\n",*line_n,buff);
     return 0;
@@ -683,7 +694,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
       }
       else if(c->type == GROUP_TYPE_NULL)
       {
-        e->error = 888;
+        e->error = ERROR_NULL_CHILD;
         int n_chars = 0; while(buff[n_chars] != '\n' && buff[n_chars] != '\0') n_chars++; n_chars++; buff[n_chars-1] = '\0';
         sprintf(e->txt,"Null child type found\nline %d ( %s )\n",*line_n,buff);
       }
@@ -699,8 +710,8 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
   }
   free(c);
 
-  if(e->error == 7) return 1; //EOF- close everything
-  if(e->error != 1) return 0; //wut
+  if(e->error == ERROR_EOF)          return 1; //close everything
+  if(e->error != ERROR_INVALID_LINE) return 0; //let "invalid line" attempt parse as "end line"
 
   s = *b;
        if(*s == '>' && g->type == GROUP_TYPE_SEQUENCE) s++; //great
@@ -708,7 +719,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
   else if(*s == ')' && g->type == GROUP_TYPE_PERMUTE)  s++; //great
   else
   {
-    e->error = 5;
+    //e->error; //retain error from stack
     int n_chars = 0;
     while(buff[n_chars] != '\n' && buff[n_chars] != '\0') n_chars++; n_chars++; buff[n_chars-1] = '\0';
     if(g->type == GROUP_TYPE_SEQUENCE)
@@ -897,7 +908,7 @@ group *parse()
   buff = (char *)malloc(sizeof(char)*max_read_line_len);
 
   parse_error e;
-  e.error = 0;
+  e.error = ERROR_NULL;
   e.txt = (char *)malloc(sizeof(char)*max_read_line_len);
   int line_n = -1;
 
