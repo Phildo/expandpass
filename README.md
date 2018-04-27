@@ -56,7 +56,7 @@ Output:
 banana
 ```
 
-Note: To include '"' within a string, escape it with \\" (example:`"Hello\"World\""` will yield `Hello"World"`). To include '\\', escape it with \\.
+Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"World\""` will yield `Hello"World"`). To include `\`, escape it with `\\`.
 
 The next layer up is an **Option Group**, specified by `{}`
 
