@@ -12,7 +12,7 @@ frun:
 	./$(EXE)
 
 debug:
-	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE)
+	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) -v
 
 $(EXE): $(SRC) seed.txt
 	gcc $(NOWARN) $(SRC) -o $(EXE)
@@ -21,7 +21,7 @@ password.txt: $(EXE)
 	./$(EXE)
 
 clean:
-	rm $(EXE)
+	rm -r $(EXE) $(EXE).dSYM
 
 replace: $(EXE)
 	cp $(EXE) `which $(EXE)`

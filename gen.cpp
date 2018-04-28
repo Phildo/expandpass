@@ -168,23 +168,41 @@ int main(int argc, char **argv)
     }
     else if(strcmp(argv[i],"-o") == 0)
     {
+      if(i+1 >= argc)
+      {
+        fprintf(stderr,"error: no output file specified with -o\n");
+        exit(1);
+      }
       i++;
       password_file = argv[i];
     }
     else if(strcmp(argv[i],"-i") == 0)
     {
+      if(i+1 >= argc)
+      {
+        fprintf(stderr,"error: no input file specified with -i\n");
+        exit(1);
+      }
       i++;
       seed_file = argv[i];
     }
     else if(strcmp(argv[i],"-v") == 0)
     {
-      i++;
-      parse_number(argv[i], &validate);
+      if(i+1 < argc)
+      {
+        i++;
+        parse_number(argv[i], &validate);
+        if(validate < 0) { validate = 10; i--; }
+      }
     }
     else if(strcmp(argv[i],"-c") == 0)
     {
-      i++;
-      parse_number(argv[i], &checkpoint);
+      if(i+1 < argc)
+      {
+        i++;
+        parse_number(argv[i], &checkpoint);
+        if(checkpoint < 0) { checkpoint = 1000000; i--; }
+      }
       if(i+1 < argc) { i++; checkpoint_file = argv[i]; }
     }
     else if(strcmp(argv[i],"-r") == 0)
