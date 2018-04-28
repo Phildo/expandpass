@@ -1,9 +1,10 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 2;
+static const int version_min = 3;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -124,8 +125,9 @@ char *buff;
 int buff_i;
 
 char *seed_file = "seed.txt";
+int seed_specified = 0;
 char *password_file = 0;
-char *progress_file = "seed.progress";
+char *resume_file = "seed.progress";
 char *checkpoint_file = "seed.progress";
 char checkpoint_file_bak[512];
 int estimate = 0;
@@ -197,6 +199,7 @@ int main(int argc, char **argv)
       }
       i++;
       seed_file = argv[i];
+      seed_specified = 1;
     }
     else if(strcmp(argv[i],"-faA") == 0)
     {
@@ -274,7 +277,7 @@ int main(int argc, char **argv)
     else if(strcmp(argv[i],"-r") == 0)
     {
       resume = 1;
-      if(i+1 < argc) { i++; progress_file = argv[i]; }
+      if(i+1 < argc) { i++; resume_file = argv[i]; }
     }
     else
     {
@@ -984,8 +987,12 @@ group *parse()
   FILE *fp;
   char *buff;
 
-  fp = fopen(seed_file, "r");
-  if(!fp) { fprintf(stderr,"Error opening seed file: %s\n",seed_file); exit(1); }
+  if(!seed_specified && !isatty(fileno(stdin))) fp = stdin;
+  else
+  {
+    fp = fopen(seed_file, "r");
+    if(!fp) { fprintf(stderr,"Error opening seed file: %s\n",seed_file); exit(1); }
+  }
   buff = (char *)malloc(sizeof(char)*max_read_line_len);
 
   parse_error e;
@@ -1498,7 +1505,7 @@ void checkpoint_group(group *g, FILE *fp)
 void resume_from_file(group *g)
 {
   FILE *fp;
-  fp = fopen(progress_file, "r");
+  fp = fopen(resume_file, "r");
   if(!fp) { fprintf(stderr,"Error opening progress file: %s\n",password_file); exit(1); }
   resume_group(g,fp);
   fclose(fp);
