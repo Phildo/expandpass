@@ -34,7 +34,7 @@ It outputs the full expansion of that seed to stdout, or you can define an outpu
 
 # Other Arguments:
 
-`-v [#]` Verifies certain properties of resultant passwords before outputting. Currently requires: >= 1 lowercase letter, >= 1 uppercase letter, >= 1 number, and >= 1 other (future development is planned to allow specification of each requirement individually). Optional number as argument, setting required minimum length for output. `expandpass -v 10`
+`-f[aA|A|a|#|aA#|@|l] [#]` Filters output by properties (use --help for details). Optional number as argument, quantifying requirement. `expandpass -f# -fa -fA -fl 10`
 
 `-c # [progress_file]` Sets how often (default: never) to save progress to a progress file ("set Checkpoint"). Will output # passwords before writing progress to a file (also optionally specified; default: "seed.progress"). `expandpass -c 1000000 my_seed.progress`
 

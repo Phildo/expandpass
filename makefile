@@ -12,7 +12,7 @@ frun:
 	./$(EXE)
 
 debug:
-	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) -v
+	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) -fa -f\#
 
 $(EXE): $(SRC) seed.txt
 	gcc $(NOWARN) $(SRC) -o $(EXE)

@@ -131,7 +131,13 @@ char checkpoint_file_bak[512];
 int estimate = 0;
 int estimate_rate = 600000;
 int resume = 0;
-int validate = 0;
+int validate_alpha_e            = 0;
+int validate_up_alpha_e         = 0;
+int validate_low_alpha_e        = 0;
+int validate_numeric_e          = 0;
+int validate_alphanumeric_e     = 0;
+int validate_non_alphanumeric_e = 0;
+int validate_length = 0;
 int checkpoint = 0;
 
 int main(int argc, char **argv)
@@ -141,17 +147,23 @@ int main(int argc, char **argv)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-v #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
+      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
       fprintf(stdout,"--help shows this menu\n");
       fprintf(stdout,"--version displays version (%d.%d)\n",version_maj,version_min);
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
       fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
-      fprintf(stdout,"-v specifies verification before output; # is minimum password length\n");
-      fprintf(stdout,"   note: any verification > 0 will also verify that there is at least\n");
-      fprintf(stdout,"         1+ char A-Z, 1+ a-z, 1+ 0-9, and 1+ other. (cmd args coming soon)\n");
-      fprintf(stdout,"   (default is no verification)\n");
+      fprintf(stdout,"-f filter output, ensuring existence of:\n");
+      fprintf(stdout,"   aA alphabetic character [a-zA-Z]\n");
+      fprintf(stdout,"   A uppercase alphabetic character [A-Z]\n");
+      fprintf(stdout,"   a lowercase alphabetic character [a-z]\n");
+      fprintf(stdout,"   # numeric character [0-9]\n");
+      fprintf(stdout,"   aA# alphanumeric character [a-zA-Z0-9]\n");
+      fprintf(stdout,"   @ non-alphanumeric character [!a-zA-Z0-9]\n");
+      fprintf(stdout,"   aA alphabetic character [a-zA-Z]\n");
+      fprintf(stdout,"   optional number specifies required amount in character set (default 1)\n");
+      fprintf(stdout,"-fl filter output by specified length (default 10)\n");
       fprintf(stdout,"-c specifies how often to checkpoint via progress file (default \"seed.progress\" if blank)\n");
       fprintf(stdout,"-r specifies to resume from progress file (default \"seed.progress\" if blank)\n");
       exit(0);
@@ -186,22 +198,76 @@ int main(int argc, char **argv)
       i++;
       seed_file = argv[i];
     }
-    else if(strcmp(argv[i],"-v") == 0)
+    else if(strcmp(argv[i],"-faA") == 0)
     {
+      validate_alpha_e = 1;
       if(i+1 < argc)
       {
         i++;
-        parse_number(argv[i], &validate);
-        if(validate < 0) { validate = 10; i--; }
+        if(parse_number(argv[i], &validate_alpha_e) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-fA") == 0)
+    {
+      validate_up_alpha_e = 1;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_up_alpha_e) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-fa") == 0)
+    {
+      validate_low_alpha_e = 1;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_low_alpha_e) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-f#") == 0)
+    {
+      validate_numeric_e = 1;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_numeric_e) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-faA#") == 0)
+    {
+      validate_alphanumeric_e = 1;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_alphanumeric_e) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-f@") == 0)
+    {
+      validate_non_alphanumeric_e = 1;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_non_alphanumeric_e) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-fl") == 0)
+    {
+      validate_length = 10;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_length) < 0) i--;
       }
     }
     else if(strcmp(argv[i],"-c") == 0)
     {
+      checkpoint = 1000000;
       if(i+1 < argc)
       {
         i++;
-        parse_number(argv[i], &checkpoint);
-        if(checkpoint < 0) { checkpoint = 1000000; i--; }
+        if(parse_number(argv[i], &checkpoint) < 0) i--;
       }
       if(i+1 < argc) { i++; checkpoint_file = argv[i]; }
     }
@@ -270,56 +336,44 @@ int main(int argc, char **argv)
   }
   else fp = stdout;
 
-  if(validate)
+  int done = 0;
+  long long int e = 0;
+  while(!done)
   {
-    int done = 0;
-    long long int e = 0;
-    while(!done)
+    done = !sprint_group(g, 0, lockholder, &passholder_p);
+    e++;
+    *passholder_p = '\0';
+    if(validate_length <= passholder_p-passholder)
     {
-      done = !sprint_group(g, 0, lockholder, &passholder_p);
-      e++;
-      *passholder_p = '\0';
-      if(passholder_p-passholder >= validate)
-      {
-        int has_upp = 0;
-        int has_low = 0;
-        int has_num = 0;
-        int has_sym = 0;
-        passholder_p = passholder;
-        while(has_upp+has_low+has_num+has_sym < 4 && *passholder_p != '\0')
-        {
-               if(*passholder_p >= 'A' && *passholder_p <= 'Z') has_upp = 1;
-          else if(*passholder_p >= 'a' && *passholder_p <= 'z') has_low = 1;
-          else if(*passholder_p >= '0' && *passholder_p <= '9') has_num = 1;
-          else                                                  has_sym = 1;
-          passholder_p++;
-        }
-        if(has_upp+has_low+has_num+has_sym == 4) append_password(passholder);
-      }
+      int alpha_e = 0;
+      int up_alpha_e = 0;
+      int low_alpha_e = 0;
+      int numeric_e = 0;
+      int alphanumeric_e = 0;
+      int non_alphanumeric_e = 0;
       passholder_p = passholder;
-      if(checkpoint && e >= checkpoint)
+      while(*passholder_p != '\0')
       {
-        checkpoint_to_file(g);
-        e = 0;
+             if(*passholder_p >= 'A' && *passholder_p <= 'Z') { up_alpha_e++;  alpha_e++; alphanumeric_e++; }
+        else if(*passholder_p >= 'a' && *passholder_p <= 'z') { low_alpha_e++; alpha_e++; alphanumeric_e++; }
+        else if(*passholder_p >= '0' && *passholder_p <= '9') { numeric_e++;              alphanumeric_e++; }
+        else                                                  { non_alphanumeric_e++;                       }
+        passholder_p++;
       }
+      if(
+        alpha_e            >= validate_alpha_e &&
+        up_alpha_e         >= validate_up_alpha_e &&
+        low_alpha_e        >= validate_low_alpha_e &&
+        numeric_e          >= validate_numeric_e &&
+        alphanumeric_e     >= validate_alphanumeric_e &&
+        non_alphanumeric_e >= validate_non_alphanumeric_e
+      ) append_password(passholder);
     }
-  }
-  else
-  {
-    int done = 0;
-    long long int e = 0;
-    while(!done)
+    passholder_p = passholder;
+    if(checkpoint && e >= checkpoint)
     {
-      done = !sprint_group(g, 0, lockholder, &passholder_p);
-      e++;
-      *passholder_p = '\0';
-      append_password(passholder);
-      passholder_p = passholder;
-      if(checkpoint && e >= checkpoint)
-      {
-        checkpoint_to_file(g);
-        e = 0;
-      }
+      checkpoint_to_file(g);
+      e = 0;
     }
   }
 
