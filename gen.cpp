@@ -3,7 +3,7 @@
 #include "string.h"
 
 static const int version_maj = 0;
-static const int version_min = 1;
+static const int version_min = 2;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
