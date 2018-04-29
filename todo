@@ -1,6 +1,7 @@
 - unicode
-- param for buff size
-- profile to ensure not bottleneck w/ hashcat @ 600k/s
 - validate smartly (know to skip whole groups of modifications/etc... if guaranteed to not succeed)
-- --unroll #: notice if subgroup is something complicated, but results in ~< 100 possibilities, and expand to enumerated group (quicker runtime(?))
+- --unroll #: notice if subgroup is something complicated, but results in < #(~100) possibilities, and expand to enumerated group (quicker runtime(?))
+- parallelize (currently not super necessary- ~1M lines/s)
+- user defined modification gamuts (for easy reuse)
+- pre-defined modification gamuts (alpha, alphanumeric, etc...)
 

@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 3;
+static const int version_min = 4;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -149,13 +149,14 @@ int main(int argc, char **argv)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
+      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-b #] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
       fprintf(stdout,"--help shows this menu\n");
       fprintf(stdout,"--version displays version (%d.%d)\n",version_maj,version_min);
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
       fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
+      fprintf(stdout,"-b specifies buffer length between output\n");
       fprintf(stdout,"-f filter output, ensuring existence of:\n");
       fprintf(stdout,"   aA alphabetic character [a-zA-Z]\n");
       fprintf(stdout,"   A uppercase alphabetic character [A-Z]\n");
@@ -200,6 +201,15 @@ int main(int argc, char **argv)
       i++;
       seed_file = argv[i];
       seed_specified = 1;
+    }
+    else if(strcmp(argv[i],"-b") == 0)
+    {
+      i++;
+      if(i >= argc || parse_number(argv[i], &buff_len) < 0)
+      {
+        fprintf(stderr,"error: no buffer size specified with -b\n");
+        exit(1);
+      }
     }
     else if(strcmp(argv[i],"-faA") == 0)
     {

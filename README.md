@@ -21,7 +21,7 @@ banana123!
 Note: This had to be a (very) short example- because the output grows very fast!
 
 
-# HOW IT WORKS:
+# HOW TO USE:
 
 You define a seed file, and give it to expandpass as an argument (default is `seed.txt`)
 
@@ -31,8 +31,18 @@ It outputs the full expansion of that seed to stdout, or you can define an outpu
 
 `expandpass -o path/to/output.txt`
 
+It can also be run (and behaves as expected) in standard unix-y way
 
-# Other Arguments:
+`echo '{ "apple" "banana" }[m5]' | expandpass | grep 4`
+
+
+# ARGUMENTS:
+
+`-i input_file` Specifies file to use as seed (default seed.txt, also accepts stdin w/o specification)
+
+`-o output_file` Specifies file to print results (default stdout)
+
+`-b #` Specifies buffer size (bytes) to fill before printing to output (default 1M, experimentally doesn't really alter perf as long as its bigger than ~20 bytes)
 
 `-f[aA|A|a|#|aA#|@|l] [#]` Filters output by properties (use --help for details). Optional number as argument, quantifying requirement. `expandpass -f# -fa -fA -fl 10`
 
@@ -314,6 +324,35 @@ d1
 will ensure `banana` is printed unmodified once before going into the modifications.
 
 NOTE: The - is a guaranteed single-modification (doesn't need further delineation). So you could identically specify `"banana"[-d1]`
+
+
+# PERFORMANCE:
+
+Benchmarked with:
+
+```
+time echo '( "Jean" < { "M" "m" } "arry" { "M" "m" } "e" > ) [m5] "123" [-s1 "0123456789"] { "!" "!!" }' | expandpass | wc -l
+```
+
+with worst-case output (over a handful of trials):
+
+```
+  954800
+
+real	0m0.810s
+user	0m0.679s
+sys	0m0.029s
+```
+
+on a 2014 Macbook Air, 1.4 GHz Intel Core i5. This comes out to ~1M lines/s.
+
+Note- There is room for performance improvement. But until I have reason, I have no plan to continue working on this aspect.
+That said, some ideas/next steps would be:
+
+- Notice subgroups with estimated output < ~500 passwords, and pre-cache into a single, bare option group.
+- Cache supgroup output for blit when iteration occurs elsewhere.
+- Parallelize (probably lower-hanging fruit than it sounds! generation of each output already relies only on nicely contained state object)
+- Edit password iterations in place, rather than complete reconstruction (would require decent refactor. might render more-difficult parallelization).
 
 
 # LICENSE:
