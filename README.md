@@ -52,9 +52,9 @@ It can also be run (and behaves as expected) in standard unix-y way
 
 `--estimate [@600000]` Prints an estimation of number passwords generated from a given seed file, and prediction of how long it will take to enumerate through them at specified output/s (default: 600000). Note: approximates subgroup lengths in processing modifications; subject to error. `expandpass --estimate @7000`
 
-`--unroll [#]` Specifies cutoff of group size, below which is fit for unrolling (optimizing into a single flat options group) (default 1000).
+`--unroll #` Specifies cutoff of group size, below which is fit for unrolling (optimizing into a single flat options group) (default 1000; 0 == don't unroll).
 
-`--no-unroll` Skips optimization step. A progress file created with/without unrolling can only successfully be resumed under same circumstances. Might be faster with very small seed files to not unroll.
+`--normalize` Prints normalized/optimized seed file (as used in actual gen).
 
 `--help` Shows simple usage menu. `expandpass --help`
 

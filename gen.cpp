@@ -155,12 +155,11 @@ int main(int argc, char **argv)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [--unroll [#]] [--no-unroll] [-b #] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
+      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [--unroll #] [--normalize] [-b #] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
       fprintf(stdout,"--help shows this menu\n");
       fprintf(stdout,"--version displays version (%d.%d)\n",version_maj,version_min);
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
-      fprintf(stdout,"--unroll specifies cutoff group size, below which will be optimized (default 1000)\n");
-      fprintf(stdout,"--no-unroll skips optimization step\n");
+      fprintf(stdout,"--unroll specifies cutoff group size, below which will be optimized (default 1000; 0 == no unrolling)\n");
       fprintf(stdout,"--normalize prints normalized/optimized seed (as used in actual gen)\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
@@ -193,11 +192,11 @@ int main(int argc, char **argv)
     else if(strcmp(argv[i],"--unroll") == 0)
     {
       i++;
-      if(i >= argc || parse_number(argv[i], &unroll) < 0) unroll = 1000;
-    }
-    else if(strcmp(argv[i],"--no-unroll") == 0)
-    {
-      unroll = 0;
+      if(i >= argc || parse_number(argv[i], &unroll) < 0)
+      {
+        fprintf(stderr,"error: no unroll threshhold specified with --unroll\n");
+        exit(1);
+      }
     }
     else if(strcmp(argv[i],"--normalize") == 0)
     {
