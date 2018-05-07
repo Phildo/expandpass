@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 5;
+static const int version_min = 6;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
