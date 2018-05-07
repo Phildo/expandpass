@@ -108,8 +108,10 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
-void preprocess_group(group *g, group *root);
+void preprocess_group(group *g);
 group *unroll_group(group *g);
+void collapse_group(group *g, group *root);
+void print_seed(group *g, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
 int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
@@ -144,6 +146,7 @@ int validate_non_alphanumeric_e = 0;
 int validate_length = 0;
 int checkpoint = 0;
 int unroll = 1000;
+int normalize = 0;
 
 int main(int argc, char **argv)
 {
@@ -158,6 +161,7 @@ int main(int argc, char **argv)
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"--unroll specifies cutoff group size, below which will be optimized (default 1000)\n");
       fprintf(stdout,"--no-unroll skips optimization step\n");
+      fprintf(stdout,"--normalize prints normalized/optimized seed (as used in actual gen)\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
       fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
@@ -194,6 +198,10 @@ int main(int argc, char **argv)
     else if(strcmp(argv[i],"--no-unroll") == 0)
     {
       unroll = 0;
+    }
+    else if(strcmp(argv[i],"--normalize") == 0)
+    {
+      normalize = 1;
     }
     else if(strcmp(argv[i],"-o") == 0)
     {
@@ -326,13 +334,21 @@ int main(int argc, char **argv)
 
   group *g = parse();
 
-  preprocess_group(g,g);
+  preprocess_group(g);
 
   if(unroll)
   {
     group *og = g;
     g = unroll_group(og);
     if(g != og) free(og);
+  }
+
+  collapse_group(g,g);
+
+  if(normalize)
+  {
+    print_seed(g,0);
+    exit(0);
   }
 
   if(estimate)
@@ -881,55 +897,9 @@ void absorb_gamuts(modification *m, group *g)
   }
 }
 
-void preprocess_group(group *g, group *root)
+void preprocess_group(group *g)
 {
-  //remove null modifications
-  if(g->n_mods == 1 && g->mods[0].n_injections+g->mods[0].n_smart_substitutions+g->mods[0].n_substitutions+g->mods[0].n_deletions == 0)
-  {
-    g->n_mods = 0;
-    free(g->mods);
-  }
-
-  //collapse single-child, no modification groups
-  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
-  {
-    for(int i = 0; i < g->n; i++)
-    {
-      group *c = &g->childs[i];
-      if(c->n == 1 && c->n_mods == 0 && (c->type == GROUP_TYPE_SEQUENCE || c->type == GROUP_TYPE_OPTION || c->type == GROUP_TYPE_PERMUTE))
-      {
-        group *oc = c->childs;
-        *c = c->childs[0];
-        free(oc);
-        i--;
-      }
-    }
-  }
-
-  //collapse like-parent/child options/sequences
-  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION)
-  {
-    for(int i = 0; i < g->n; i++)
-    {
-      group *c = &g->childs[i];
-      if(c->n_mods == 0 && c->type == g->type)
-      {
-        g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
-        c = &g->childs[i]; //NEED TO RE-ASSIGN C, AS G HAS BEEN REALLOCED
-        group *oc = c->childs;
-        int ocn = c->n;
-        for(int j = 0; j < g->n-i; j++)
-          g->childs[g->n-1+ocn-j-1] = g->childs[g->n-1-j];
-        for(int j = 0; j < ocn; j++)
-          g->childs[i+j] = oc[j];
-        free(oc);
-        g->n += ocn-1;
-        i--;
-      }
-    }
-  }
-
-  //alloc/init modifications; collapse gamuts
+  //alloc/init modifications
   modification *m;
   for(int i = 0; i < g->n_mods; i++)
   {
@@ -943,9 +913,6 @@ void preprocess_group(group *g, group *root)
     if(m->n_injections)          { m->injection_sub_i          = (int *)malloc(sizeof(int)*m->n_injections);          for(int j = 0; j < m->n_injections;          j++) m->injection_sub_i[j]          = 0; }
     if(m->n_smart_substitutions) { m->smart_substitution_sub_i = (int *)malloc(sizeof(int)*m->n_smart_substitutions); for(int j = 0; j < m->n_smart_substitutions; j++) m->smart_substitution_sub_i[j] = 0; }
     if(m->n_substitutions)       { m->substitution_sub_i       = (int *)malloc(sizeof(int)*m->n_substitutions);       for(int j = 0; j < m->n_substitutions;       j++) m->substitution_sub_i[j]       = 0; }
-
-    if(m->n > 0)
-      absorb_gamuts(m, root);
   }
 
   //ensure permutations cached
@@ -1012,7 +979,72 @@ void preprocess_group(group *g, group *root)
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
-      preprocess_group(&g->childs[i], root);
+      preprocess_group(&g->childs[i]);
+  }
+}
+
+void collapse_group(group *g, group *root)
+{
+  //remove null modifications
+  if(g->n_mods == 1 && g->mods[0].n_injections+g->mods[0].n_smart_substitutions+g->mods[0].n_substitutions+g->mods[0].n_deletions == 0)
+  {
+    g->n_mods = 0;
+    free(g->mods);
+  }
+
+  //collapse single-child, no modification groups
+  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
+  {
+    for(int i = 0; i < g->n; i++)
+    {
+      group *c = &g->childs[i];
+      if(c->n == 1 && c->n_mods == 0 && (c->type == GROUP_TYPE_SEQUENCE || c->type == GROUP_TYPE_OPTION || c->type == GROUP_TYPE_PERMUTE))
+      {
+        group *oc = c->childs;
+        *c = c->childs[0];
+        free(oc);
+        i--;
+      }
+    }
+  }
+
+  //collapse like-parent/child options/sequences
+  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION)
+  {
+    for(int i = 0; i < g->n; i++)
+    {
+      group *c = &g->childs[i];
+      if(c->n_mods == 0 && c->type == g->type)
+      {
+        g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
+        c = &g->childs[i]; //NEED TO RE-ASSIGN C, AS G HAS BEEN REALLOCED
+        group *oc = c->childs;
+        int ocn = c->n;
+        for(int j = 0; j < g->n-i; j++)
+          g->childs[g->n-1+ocn-j-1] = g->childs[g->n-1-j];
+        for(int j = 0; j < ocn; j++)
+          g->childs[i+j] = oc[j];
+        free(oc);
+        g->n += ocn-1;
+        i--;
+      }
+    }
+  }
+
+  //collapse gamuts
+  modification *m;
+  for(int i = 0; i < g->n_mods; i++)
+  {
+    m = &g->mods[i];
+    if(m->n > 0)
+      absorb_gamuts(m, root);
+  }
+
+  //recurse
+  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
+  {
+    for(int i = 0; i < g->n; i++)
+      collapse_group(&g->childs[i], root);
   }
 }
 
@@ -1491,14 +1523,14 @@ group *unroll_group(group *g)
   if(estimate_group(g) < unroll)
   {
     if(!doit && g->n_mods) doit = 1;
-    if(!doit && g->type != GROUP_TYPE_OPTION) doit = 1;
-    if(!doit)
+    if(!doit && (g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_PERMUTE)) doit = 1;
+    if(!doit && g->type == GROUP_TYPE_OPTION)
     {
       for(int i = 0; !doit && i < g->n; i++)
         if(g->childs[i].n_mods || g->childs[i].type != GROUP_TYPE_CHARS)
           doit = 1;
     }
-    if(doit)
+    if(doit)//if !doit, then it's already optimal options or chars
     {
       char *passholder = (char *)malloc(sizeof(char)*max_pass_len);
       char *passholder_p = passholder;
@@ -1532,7 +1564,7 @@ group *unroll_group(group *g)
       return ng;
     }
   }
-  if(!doit)
+  else if(g->type != GROUP_TYPE_CHARS)
   {
     group *og;
     group *ng;
@@ -1548,6 +1580,53 @@ group *unroll_group(group *g)
     }
   }
   return g;
+}
+
+void print_seed(group *g, int indent)
+{
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+      for(int i = 0; i < indent; i++) printf("  "); printf("<\n");
+      for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],indent+1);
+      for(int i = 0; i < indent; i++) printf("  "); printf(">\n");
+      break;
+    case GROUP_TYPE_OPTION:
+      for(int i = 0; i < indent; i++) printf("  "); printf("{\n");
+      for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],indent+1);
+      for(int i = 0; i < indent; i++) printf("  "); printf("}\n");
+      break;
+    case GROUP_TYPE_PERMUTE:
+      for(int i = 0; i < indent; i++) printf("  "); printf("(\n");
+      for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],indent+1);
+      for(int i = 0; i < indent; i++) printf("  "); printf(")\n");
+      break;
+    case GROUP_TYPE_CHARS:
+      for(int i = 0; i < indent; i++) printf("  "); printf("\"%s\"\n",g->chars);
+      break;
+    default: //appease compiler
+      break;
+  }
+  if(g->n_mods)
+  {
+    for(int i = 0; i < indent; i++) printf("  "); printf("[\n");
+    for(int i = 0; i < g->n_mods; i++)
+    {
+      modification *m = &g->mods[i];
+      for(int j = 0; j < indent+1; j++) printf("  ");
+      if(m->n_injections+m->n_smart_substitutions+m->n_substitutions+m->n_deletions == 0) printf("-\n");
+      else
+      {
+        if(m->n_injections)          printf("i%d ",m->n_injections);
+        if(m->n_smart_substitutions) printf("m%d ",m->n_smart_substitutions);
+        if(m->n_substitutions)       printf("s%d ",m->n_substitutions);
+        if(m->n_deletions)           printf("d%d ",m->n_deletions);
+        if(m->n) printf("\"%s\"",m->chars);
+        printf("\n");
+      }
+    }
+    for(int i = 0; i < indent; i++) printf("  "); printf("]\n");
+  }
 }
 
 void checkpoint_to_file(group *g)

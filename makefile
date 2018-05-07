@@ -16,7 +16,7 @@ debug:
 	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) $(ARGS)
 
 $(EXE): $(SRC) seed.txt
-	gcc $(NOWARN) $(SRC) -o $(EXE) $(ARGS)
+	gcc $(NOWARN) $(SRC) -o $(EXE)
 
 password.txt: $(EXE)
 	./$(EXE) $(ARGS)
