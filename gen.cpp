@@ -108,6 +108,8 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
+void preprocess_group(group *g, group *root);
+group *unroll_group(group *g);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
 int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
@@ -141,6 +143,7 @@ int validate_alphanumeric_e     = 0;
 int validate_non_alphanumeric_e = 0;
 int validate_length = 0;
 int checkpoint = 0;
+int unroll = 1000;
 
 int main(int argc, char **argv)
 {
@@ -149,10 +152,12 @@ int main(int argc, char **argv)
   {
     if(strcmp(argv[i],"--help") == 0)
     {
-      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [-b #] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
+      fprintf(stdout,"usage: expandpass [--help] [--estimate [@#]] [-i input_seed.txt] [-o output_passwords.txt] [--unroll [#]] [--no-unroll] [-b #] [-f[aA|A|a|#|aA#|@|l] #] [-c # [checkpoint_seed.progress]] [-r [recovery_seed.progress]]\n");
       fprintf(stdout,"--help shows this menu\n");
       fprintf(stdout,"--version displays version (%d.%d)\n",version_maj,version_min);
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
+      fprintf(stdout,"--unroll specifies cutoff group size, below which will be optimized (default 1000)\n");
+      fprintf(stdout,"--no-unroll skips optimization step\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
       fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
@@ -180,6 +185,15 @@ int main(int argc, char **argv)
     {
       estimate = 1;
       if(i+1 < argc) { i++; if(argv[i][0] == '@') parse_number(argv[i]+1, &estimate_rate); else i--; }
+    }
+    else if(strcmp(argv[i],"--unroll") == 0)
+    {
+      i++;
+      if(i >= argc || parse_number(argv[i], &unroll) < 0) unroll = 1000;
+    }
+    else if(strcmp(argv[i],"--no-unroll") == 0)
+    {
+      unroll = 0;
     }
     else if(strcmp(argv[i],"-o") == 0)
     {
@@ -299,7 +313,27 @@ int main(int argc, char **argv)
   sprintf(checkpoint_file_bak,"%s.bak",checkpoint_file);
 
   n_cached_permute_indices = 0;
+
+  buff = (char *)malloc(sizeof(char)*buff_len);
+  buff_i = 0;
+
+  devnull = (char *)malloc(sizeof(char)*buff_len);
+
+  char *passholder = (char *)malloc(sizeof(char)*max_pass_len);
+  char *passholder_p = passholder;
+  char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
+  for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
+
   group *g = parse();
+
+  preprocess_group(g,g);
+
+  if(unroll)
+  {
+    group *og = g;
+    g = unroll_group(og);
+    if(g != og) free(og);
+  }
 
   if(estimate)
   {
@@ -327,16 +361,6 @@ int main(int argc, char **argv)
     fprintf(stdout,"\n");
     exit(0);
   }
-
-  buff = (char *)malloc(sizeof(char)*buff_len);
-  buff_i = 0;
-
-  devnull = (char *)malloc(sizeof(char)*buff_len);
-
-  char *passholder = (char *)malloc(sizeof(char)*max_pass_len);
-  char *passholder_p = passholder;
-  char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
-  for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
 
   if(resume)
     resume_from_file(g);
@@ -1023,7 +1047,6 @@ group *parse()
     *g = g->childs[0];
     free(og);
   }
-  preprocess_group(g,g);
 
   free(buff);
   free(e.txt);
@@ -1460,6 +1483,71 @@ unsigned long long int estimate_group(group *g)
     e = accrue_e;
   }
   return e;
+}
+
+group *unroll_group(group *g)
+{
+  int doit = 0;
+  if(estimate_group(g) < unroll)
+  {
+    if(!doit && g->n_mods) doit = 1;
+    if(!doit && g->type != GROUP_TYPE_OPTION) doit = 1;
+    if(!doit)
+    {
+      for(int i = 0; !doit && i < g->n; i++)
+        if(g->childs[i].n_mods || g->childs[i].type != GROUP_TYPE_CHARS)
+          doit = 1;
+    }
+    if(doit)
+    {
+      char *passholder = (char *)malloc(sizeof(char)*max_pass_len);
+      char *passholder_p = passholder;
+      char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
+      for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
+
+      int done = 0;
+      group *ng = (group *)malloc(sizeof(group));
+      zero_group(ng);
+      ng->type = GROUP_TYPE_OPTION;
+      group *cg;
+      while(!done)
+      {
+        done = !sprint_group(g, 0, lockholder, &passholder_p);
+        *passholder_p = '\0';
+        ng->n++;
+        if(ng->n == 1) ng->childs = (group *)malloc(sizeof(group));
+        else           ng->childs = (group *)realloc(ng->childs,sizeof(group)*ng->n);
+        cg = &ng->childs[ng->n-1];
+        zero_group(cg);
+        cg->type = GROUP_TYPE_CHARS;
+        cg->n = passholder_p-passholder;
+        cg->chars = (char *)malloc(sizeof(char)*(cg->n+1));
+        strcpy(cg->chars,passholder);
+        passholder_p = passholder;
+      }
+
+      free(passholder);
+      free(lockholder);
+      //TODO: recursively free g's contents (leave g)
+      return ng;
+    }
+  }
+  if(!doit)
+  {
+    group *og;
+    group *ng;
+    for(int i = 0; i < g->n; i++)
+    {
+      og = &g->childs[i];
+      ng = unroll_group(og);
+      if(og != ng)
+      {
+        *og = *ng;
+        free(ng);
+      }
+    }
+  }
+  return g;
 }
 
 void checkpoint_to_file(group *g)

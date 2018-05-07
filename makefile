@@ -1,6 +1,7 @@
 EXE=expandpass
 SRC=gen.cpp
 NOWARN=-Wno-write-strings
+ARGS=
 
 make: $(EXE)
 	
@@ -9,16 +10,19 @@ run: password.txt
 	
 
 frun:
-	./$(EXE)
+	./$(EXE) $(ARGS)
 
 debug:
-	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) -fa -f\#
+	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) $(ARGS)
 
 $(EXE): $(SRC) seed.txt
-	gcc $(NOWARN) $(SRC) -o $(EXE)
+	gcc $(NOWARN) $(SRC) -o $(EXE) $(ARGS)
 
 password.txt: $(EXE)
-	./$(EXE)
+	./$(EXE) $(ARGS)
+
+tags:
+	ctags ./*
 
 clean:
 	rm -r $(EXE) $(EXE).dSYM
