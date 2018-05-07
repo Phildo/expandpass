@@ -4,4 +4,5 @@
 - parallelize (currently not super necessary- ~1M lines/s)
 - user defined modification gamuts (for easy reuse)
 - pre-defined modification gamuts (alpha, alphanumeric, etc...)
+- formal tests
 
