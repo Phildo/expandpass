@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 4;
+static const int version_min = 5;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -431,7 +431,7 @@ char smart_sub(int i, char key)
     case 'f': c = "F"; break;
     case 'g': c = "G9"; break;
     case 'h': c = "H"; break;
-    case 'i': c = "I!1"; break;
+    case 'i': c = "I!1;"; break;
     case 'j': c = "J"; break;
     case 'k': c = "K"; break;
     case 'l': c = "L!71"; break;
@@ -457,7 +457,7 @@ char smart_sub(int i, char key)
     case 'F': c = "f"; break;
     case 'G': c = "g9"; break;
     case 'H': c = "h"; break;
-    case 'I': c = "i!1"; break;
+    case 'I': c = "i!1;"; break;
     case 'J': c = "j"; break;
     case 'K': c = "k"; break;
     case 'L': c = "l!71"; break;
