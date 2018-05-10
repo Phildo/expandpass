@@ -343,17 +343,16 @@ with worst-case output (over a handful of trials):
 ```
   954800
 
-real	0m0.810s
-user	0m0.679s
-sys	0m0.029s
+real	0m0.507s
+user	0m0.500s
+sys	0m0.020s
 ```
 
-on a 2014 Macbook Air, 1.4 GHz Intel Core i5. This comes out to ~1M lines/s.
+on a 2014 Macbook Air, 1.4 GHz Intel Core i5. This comes out to ~2M lines/s.
 
 Note- There is room for performance improvement. But until I have reason, I have no plan to continue working on this aspect.
 That said, some ideas/next steps would be:
 
-- Notice subgroups with estimated output < ~500 passwords, and pre-cache into a single, bare option group.
 - Cache supgroup output for blit when iteration occurs elsewhere.
 - Parallelize (probably lower-hanging fruit than it sounds! generation of each output already relies only on nicely contained state object)
 - Edit password iterations in place, rather than complete reconstruction (would require decent refactor. might render more-difficult parallelization).
