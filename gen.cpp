@@ -110,7 +110,7 @@ group *parse();
 unsigned long long int estimate_group(group *g);
 void preprocess_group(group *g);
 group *unroll_group(group *g);
-void collapse_group(group *g, group *root);
+void collapse_group(group *g, group *root, int handle_gamuts);
 void print_seed(group *g, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
@@ -333,6 +333,7 @@ int main(int argc, char **argv)
 
   group *g = parse();
 
+  collapse_group(g,g,0);
   preprocess_group(g);
 
   if(unroll)
@@ -342,7 +343,7 @@ int main(int argc, char **argv)
     if(g != og) free(og);
   }
 
-  collapse_group(g,g);
+  collapse_group(g,g,1);
 
   if(normalize)
   {
@@ -982,7 +983,7 @@ void preprocess_group(group *g)
   }
 }
 
-void collapse_group(group *g, group *root)
+void collapse_group(group *g, group *root, int handle_gamuts)
 {
   //remove null modifications
   if(g->n_mods == 1 && g->mods[0].n_injections+g->mods[0].n_smart_substitutions+g->mods[0].n_substitutions+g->mods[0].n_deletions == 0)
@@ -991,18 +992,29 @@ void collapse_group(group *g, group *root)
     free(g->mods);
   }
 
-  //collapse single-child, no modification groups
+  //collapse single-or-less-child, no modification groups
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
     {
       group *c = &g->childs[i];
-      if(c->n == 1 && c->n_mods == 0 && (c->type == GROUP_TYPE_SEQUENCE || c->type == GROUP_TYPE_OPTION || c->type == GROUP_TYPE_PERMUTE))
+      if(c->type == GROUP_TYPE_SEQUENCE || c->type == GROUP_TYPE_OPTION || c->type == GROUP_TYPE_PERMUTE)
       {
-        group *oc = c->childs;
-        *c = c->childs[0];
-        free(oc);
-        i--;
+        if(c->n == 1 && c->n_mods == 0)
+        {
+          group *oc = c->childs;
+          *c = c->childs[0];
+          free(oc);
+          i--;
+        }
+        else if(c->n < 1)
+        {
+          for(int j = i+1; j < g->n; j++)
+            g->childs[j-1] = g->childs[j];
+          //TODO: free memory associated with modifications, etc... (though there really shouldn't be any)
+          g->n--;
+          i--;
+        }
       }
     }
   }
@@ -1031,19 +1043,22 @@ void collapse_group(group *g, group *root)
   }
 
   //collapse gamuts
-  modification *m;
-  for(int i = 0; i < g->n_mods; i++)
+  if(handle_gamuts) //gives option to leave gamuts un-absorbed so they can be freed in further optimization
   {
-    m = &g->mods[i];
-    if(m->n > 0)
-      absorb_gamuts(m, root);
+    modification *m;
+    for(int i = 0; i < g->n_mods; i++)
+    {
+      m = &g->mods[i];
+      if(m->n > 0)
+        absorb_gamuts(m, root);
+    }
   }
 
   //recurse
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
-      collapse_group(&g->childs[i], root);
+      collapse_group(&g->childs[i], root, handle_gamuts);
   }
 }
 
@@ -1559,7 +1574,7 @@ group *unroll_group(group *g)
 
       free(passholder);
       free(lockholder);
-      //TODO: recursively free g's contents (leave g)
+      //TODO: recursively free g's contents, g's modifications, etc... (but leave g)
       return ng;
     }
   }
