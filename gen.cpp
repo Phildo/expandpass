@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 7;
+static const int version_min = 8;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -147,6 +147,7 @@ int validate_length = 0;
 int checkpoint = 0;
 int unroll = 1000;
 int normalize = 0;
+int unquoted = 0;
 
 int main(int argc, char **argv)
 {
@@ -161,6 +162,7 @@ int main(int argc, char **argv)
       fprintf(stdout,"--estimate shows a (crude) estimation of # of likely generatable passwords\n");
       fprintf(stdout,"--unroll specifies cutoff group size, below which will be optimized (default 1000; 0 == no unrolling)\n");
       fprintf(stdout,"--normalize prints normalized/optimized seed (as used in actual gen)\n");
+      fprintf(stdout,"--unquoted treats otherwise invalid characters as single-character strings\n");
       fprintf(stdout,"-i specifies seed file (default \"seed.txt\" if blank)\n");
       fprintf(stdout,"   (see readme for seed syntax)\n");
       fprintf(stdout,"-o specifies output file (default stdout if blank)\n");
@@ -201,6 +203,10 @@ int main(int argc, char **argv)
     else if(strcmp(argv[i],"--normalize") == 0)
     {
       normalize = 1;
+    }
+    else if(strcmp(argv[i],"--unquoted") == 0)
+    {
+      unquoted = 1;
     }
     else if(strcmp(argv[i],"-o") == 0)
     {
@@ -564,6 +570,21 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
     else if(*s == '#' ) { g->type = GROUP_TYPE_NULL;         s++; *s = '\0'; }
     else if(*s == '\n') { g->type = GROUP_TYPE_NULL;         s++; *s = '\0'; }
     else if(*s == '\0') { g->type = GROUP_TYPE_NULL;         s++; *s = '\0'; }
+    else if(unquoted && *s != '>' && *s != '}' && *s != ')' && *s != ']')
+    {
+      char *c;
+      g->type = GROUP_TYPE_CHARS;
+      if(*s == '\\') s++;
+      g->n = 1;
+      g->chars = (char *)malloc(sizeof(char)*g->n+1);
+      c = g->chars;
+      *c = *s;
+      c++;
+      s++;
+      *c = '\0';
+      *b = s;
+      return 1;
+    }
     else
     {
       *b = s;
