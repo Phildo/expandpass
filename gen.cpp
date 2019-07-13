@@ -1109,7 +1109,9 @@ group *parse()
   char *b = buff;
   *b = '\0';
   if(!parse_childs(fp, &line_n, buff, &b, g, &e))
-    fprintf(stderr, "%s", e.txt);
+  {
+    fprintf(stderr, "%s", e.txt); exit(1);
+  }
   while(g->n == 1 && g->n_mods == 0 && (g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE))
   {
     group *og = g->childs;
