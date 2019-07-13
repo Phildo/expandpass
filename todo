@@ -1,5 +1,4 @@
 - unicode
-- make tabs be considered whitespace
 - validate smartly (know to skip whole groups of modifications/etc... if guaranteed to not succeed) [HARD]
 - parallelize (currently not super necessary- ~1M lines/s)
 - pre-defined modification gamuts (alpha, alphanumeric, etc...)

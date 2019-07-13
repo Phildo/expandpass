@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 8;
+static const int version_min = 9;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -561,7 +561,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       }
       s = buff;
     }
-    while(*s == ' ') s++;
+    while(*s == ' ' || *s == '\t') s++;
          if(*s == '<' ) { g->type = GROUP_TYPE_SEQUENCE;     s++; }
     else if(*s == '{' ) { g->type = GROUP_TYPE_OPTION;       s++; }
     else if(*s == '(' ) { g->type = GROUP_TYPE_PERMUTE;      s++; }
@@ -699,7 +699,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
     int d = 1;
     while(d > 0)
     {
-      while(*s == ' ') s++;
+      while(*s == ' ' || *s == '\t') s++;
            if(*s == 'd' ) { s++; d = parse_number(s,&m->n_deletions);           }
       else if(*s == 's' ) { s++; d = parse_number(s,&m->n_substitutions);       }
       else if(*s == 'i' ) { s++; d = parse_number(s,&m->n_injections);          }
