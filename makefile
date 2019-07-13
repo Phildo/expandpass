@@ -21,6 +21,9 @@ $(EXE): $(SRC) seed.txt
 password.txt: $(EXE)
 	./$(EXE) $(ARGS)
 
+test:
+	tests/run.sh
+
 tags:
 	ctags ./*
 
