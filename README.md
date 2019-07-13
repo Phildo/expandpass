@@ -56,6 +56,8 @@ It can also be run (and behaves as expected) in standard unix-y way
 
 `--normalize` Prints normalized/optimized seed file (as used in actual gen).
 
+`--unquoted` Treats otherwise invalid characters as single-character strings.
+
 `--help` Shows simple usage menu. `expandpass --help`
 
 `--version` Shows version. `expandpass --version`
