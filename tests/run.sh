@@ -7,6 +7,8 @@
 # expected out file in "out"
 # expected err file in "err"
 
+cd `dirname $0`
+
 #silly way to find out # tests
 max_tests=100
 n_tests=0
@@ -16,7 +18,6 @@ for i in `eval "echo {1..$max_tests}"`; do
   fi
 done
 
-cd `dirname $0`
 for i in `eval "echo {1..$n_tests}"`; do
   echo -n Test $i...
   touch "in/$i"

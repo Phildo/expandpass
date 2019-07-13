@@ -6,6 +6,8 @@
 # generating tests when you are already
 # confident in the current build's functionality
 
+cd `dirname $0`
+
 #silly way to find out # tests
 max_tests=100
 n_tests=0
