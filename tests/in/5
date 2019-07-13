@@ -1,0 +1,18 @@
+# single-character strings (will fail w/o --unquoted)
+{
+"ETH"
+"3TH"
+<
+  <{eE3}"th">
+  {
+    -
+    <
+      <{eE3}r>
+      {
+        -
+        <{e3i}"um">
+      }
+    >
+  }
+>
+}

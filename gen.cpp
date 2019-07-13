@@ -570,6 +570,18 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
     else if(*s == '#' ) { g->type = GROUP_TYPE_NULL;         s++; *s = '\0'; }
     else if(*s == '\n') { g->type = GROUP_TYPE_NULL;         s++; *s = '\0'; }
     else if(*s == '\0') { g->type = GROUP_TYPE_NULL;         s++; *s = '\0'; }
+    else if(*s == '-')
+    {
+      char *c;
+      g->type = GROUP_TYPE_CHARS;
+      g->n = 0;
+      g->chars = (char *)malloc(sizeof(char)*g->n+1);
+      c = g->chars;
+      s++;
+      *c = '\0';
+      *b = s;
+      return 1;
+    }
     else if(unquoted && *s != '>' && *s != '}' && *s != ')' && *s != ']')
     {
       char *c;
