@@ -174,7 +174,6 @@ int main(int argc, char **argv)
       fprintf(stdout,"   # numeric character [0-9]\n");
       fprintf(stdout,"   aA# alphanumeric character [a-zA-Z0-9]\n");
       fprintf(stdout,"   @ non-alphanumeric character [!a-zA-Z0-9]\n");
-      fprintf(stdout,"   aA alphabetic character [a-zA-Z]\n");
       fprintf(stdout,"   optional number specifies required amount in character set (default 1)\n");
       fprintf(stdout,"-fl filter output by specified length (default 10)\n");
       fprintf(stdout,"-c specifies how often to checkpoint via progress file (default \"seed.progress\" if blank)\n");
