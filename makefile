@@ -21,14 +21,15 @@ $(EXE): $(SRC) seed.txt
 password.txt: $(EXE)
 	./$(EXE) $(ARGS)
 
-test:
+test: $(EXE)
 	tests/run.sh
 
 tags:
 	ctags ./*
 
 clean:
-	rm -r $(EXE) $(EXE).dSYM
+	if [ -f $(EXE) ];      then rm    $(EXE);      fi
+	if [ -d $(EXE).dSYM ]; then rm -r $(EXE).dSYM; fi
 
 replace: $(EXE)
 	cp $(EXE) `which $(EXE)`

@@ -3,10 +3,12 @@
 # DO NOT RUN THIS PRIOR TO ./run.sh
 # that would defeat the whole purpose
 # this is a helper function for quickly
-# generating tests when you are already
-# confident in the current build's functionality
+# generating tests ::when you are already
+# confident in the current build's functionality::
+# (and will still need manual verification)
 
 cd `dirname $0`
+if [ ! -f ../expandpass ]; then echo "executable expandpass not found (expected `pwd`/../expandpass)" 1>&2; exit 1; fi
 
 #silly way to find out # tests
 max_tests=100
