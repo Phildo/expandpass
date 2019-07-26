@@ -12,8 +12,14 @@ run: password.txt
 frun:
 	./$(EXE) $(ARGS)
 
-debug:
-	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE) && lldb -- ./$(EXE) $(ARGS)
+$(EXE).dSYM:
+	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE)
+
+builddebug: $(EXE).dSYM
+	
+
+debug: $(EXE).dSYM
+	lldb -- ./$(EXE) $(ARGS)
 
 $(EXE): $(SRC) seed.txt
 	gcc $(NOWARN) $(SRC) -o $(EXE)
