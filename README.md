@@ -175,7 +175,7 @@ NOTE- seed files have a default implicit Sequence Group `<>` specified around it
 
 # MODIFIERS:
 
-There are 4 types of modifications: **'i'njections**, **'s'ubstitutions**, **'d'eletions**, and **s'm'art substitutions**.
+There are 5 types of modifications: **'i'njections**, **'s'ubstitutions**, **'d'eletions**, **s'm'art substitutions**, and **'c'opies**
 For the sake of simplicity, I'll assume each modification needs to be on its own line (though that isn't syntactually enforced)
 
 You specify that you want to modify the previously specified group (or string) with `[]`, and you specify what the modification should be within.
@@ -251,6 +251,17 @@ m1
 "b4nana"
 "baNana"
 ...
+```
+
+Copy just repeats the previous group n times
+
+```
+"banana"
+[
+c3
+]
+
+"bananabananabanana"
 ```
 
 And again, the power in these comes from their composability. The simplest one is to increment the 1 to a 2

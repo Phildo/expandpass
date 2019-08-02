@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 9;
+static const int version_min = 10;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -36,6 +36,7 @@ struct modification
   int n_smart_substitutions;
   int n_substitutions;
   int n_deletions;
+  int n_copys;
   int *injection_i;
   int *injection_sub_i;
   int *substitution_i;
@@ -44,7 +45,6 @@ struct modification
   char *smart_substitution_i_c;
   int *smart_substitution_sub_i;
   int *deletion_i;
-  int nothing_i;
 };
 void zero_modification(modification *m)
 {
@@ -54,6 +54,7 @@ void zero_modification(modification *m)
   m->n_smart_substitutions = 0;
   m->n_substitutions = 0;
   m->n_deletions = 0;
+  m->n_copys = 0;
   m->injection_i = 0;
   m->injection_sub_i = 0;
   m->smart_substitution_i = 0;
@@ -62,7 +63,6 @@ void zero_modification(modification *m)
   m->substitution_i = 0;
   m->substitution_sub_i = 0;
   m->deletion_i = 0;
-  m->nothing_i = 0;
 }
 
 struct group
@@ -711,14 +711,15 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
     while(d > 0)
     {
       while(*s == ' ' || *s == '\t') s++;
-           if(*s == 'd' ) { s++; d = parse_number(s,&m->n_deletions);           }
+           if(*s == 'c' ) { s++; d = parse_number(s,&m->n_copys); m->n_copys -= 1; } //m->n_copys = 0 means "just do it once" (ie default)
+      else if(*s == 'd' ) { s++; d = parse_number(s,&m->n_deletions);           }
       else if(*s == 's' ) { s++; d = parse_number(s,&m->n_substitutions);       }
       else if(*s == 'i' ) { s++; d = parse_number(s,&m->n_injections);          }
       else if(*s == 'm' ) { s++; d = parse_number(s,&m->n_smart_substitutions); }
       else if(*s == '-' )
       {
         s++; *b = s;
-        if(m->n_injections+m->n_smart_substitutions+m->n_substitutions+m->n_deletions == 0) return 1;
+        if(m->n_injections+m->n_smart_substitutions+m->n_substitutions+m->n_deletions+m->n_copys == 0) return 1;
         else d = -1;
       }
       else break;
@@ -1020,7 +1021,7 @@ void preprocess_group(group *g)
 void collapse_group(group *g, group *root, int handle_gamuts)
 {
   //remove null modifications
-  if(g->n_mods == 1 && g->mods[0].n_injections+g->mods[0].n_smart_substitutions+g->mods[0].n_substitutions+g->mods[0].n_deletions == 0)
+  if(g->n_mods == 1 && g->mods[0].n_injections+g->mods[0].n_smart_substitutions+g->mods[0].n_substitutions+g->mods[0].n_deletions+g->mods[0].n_copys == 0)
   {
     g->n_mods = 0;
     free(g->mods);
@@ -1237,6 +1238,18 @@ int smodify_modification(modification *m, int inert, char *lockholder, char *buf
     flen--;
     for(int j = fi; j < flen; j++) lockholder[j] = lockholder[j+1];
   }
+
+  char *s = buff;
+  char *o = *buff_p;
+  for(int i = 0; i < m->n_copys; i++)
+  {
+    for(int j = 0; j < flen; j++)
+    {
+      *o = *(s+j);
+      o++;
+    }
+  }
+  *buff_p = o;
 
   if(!inert)
   {
@@ -1664,13 +1677,14 @@ void print_seed(group *g, int indent)
     {
       modification *m = &g->mods[i];
       for(int j = 0; j < indent+1; j++) printf("  ");
-      if(m->n_injections+m->n_smart_substitutions+m->n_substitutions+m->n_deletions == 0) printf("-\n");
+      if(m->n_injections+m->n_smart_substitutions+m->n_substitutions+m->n_deletions+m->n_copys == 0) printf("-\n");
       else
       {
         if(m->n_injections)          printf("i%d ",m->n_injections);
         if(m->n_smart_substitutions) printf("m%d ",m->n_smart_substitutions);
         if(m->n_substitutions)       printf("s%d ",m->n_substitutions);
         if(m->n_deletions)           printf("d%d ",m->n_deletions);
+        if(m->n_copys)               printf("d%d ",m->n_copys+1);
         if(m->n) printf("\"%s\"",m->chars);
         printf("\n");
       }
@@ -1725,7 +1739,6 @@ void checkpoint_group(group *g, FILE *fp)
     {
       fprintf(fp,"%d\n",m->deletion_i[j]);
     }
-    fprintf(fp,"%d\n",m->nothing_i);
   }
 }
 
@@ -1770,7 +1783,6 @@ void resume_group(group *g, FILE *fp)
     {
       fscanf(fp,"%d\n",&m->deletion_i[j]);
     }
-    fscanf(fp,"%d\n",&m->nothing_i);
   }
 }
 

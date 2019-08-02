@@ -1,7 +1,11 @@
+
 - problems:
 - - because permutation indexes are pre-cached (for speed+clarity during iteration), permutation groups > 9 become huge memory sinks. > 11 = likely crashes (memory runs out). <- WOULD LOVE HELP!
 
 - features:
+- - should warn re: high permutation counts
+- - enable "realtime permutation" (which eats cost of recursion, but allows for iterative permutation w/o eating up-front memory reqs)
+- - or at the very least, estimates w/ recursion
 - - unicode
 - - validate smartly (know to skip whole groups of modifications/etc... if guaranteed to not succeed) [HARD]
 - - parallelize (currently not super necessary- ~1M lines/s)
