@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 10;
+static const int version_min = 11;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -91,6 +91,7 @@ void zero_group(group *g)
 struct parse_error
 {
   int error;
+  int force;
   char *txt;
 };
 
@@ -826,8 +827,9 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
   }
   free(m);
 
-  if(e->error == ERROR_EOF) return 1; //close everything
+  if(e->error == ERROR_EOF)                  return 1; //close everything
   if(e->error != ERROR_INVALID_MODIFICATION) return 0; //let "invalid modification" attempt parse as "end modification"
+  if(e->force)                               return 0; //if error force, don't allow passthrough ("unexpected parse" should only bubble up one level)
 
   s = *b;
   if(*s != ']')
@@ -836,6 +838,7 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
     int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
     if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
     sprintf(e->txt,"ERROR: Invalid characters within modifiers\nline %d ( %s )\n",*line_n,buff);
+    e->force = 1;
     return 0;
   }
   s++;
@@ -881,6 +884,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
 
   if(e->error == ERROR_EOF)          return 1; //close everything
   if(e->error != ERROR_INVALID_LINE) return 0; //let "invalid line" attempt parse as "end line"
+  if(e->force)                       return 0; //if error force, don't allow passthrough ("unexpected parse" should only bubble up one level)
 
   s = *b;
        if(*s == '>' && g->type == GROUP_TYPE_SEQUENCE) s++; //great
@@ -897,6 +901,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
     sprintf(e->txt,"ERROR: Invalid characters within option\nline %d ( %s )\n",*line_n,buff);
     if(g->type == GROUP_TYPE_PERMUTE)
     sprintf(e->txt,"ERROR: Invalid characters within permute\nline %d ( %s )\n",*line_n,buff);
+    e->force = 1;
     return 0;
   }
 
@@ -1112,6 +1117,7 @@ group *parse()
 
   parse_error e;
   e.error = ERROR_NULL;
+  e.force = 0;
   e.txt = (char *)malloc(sizeof(char)*max_read_line_len);
   int line_n = -1;
 
