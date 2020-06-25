@@ -294,7 +294,7 @@ int main(int argc, char **argv)
         if(parse_number(argv[i], &validate_non_alphanumeric_e) < 0) i--;
       }
     }
-    else if(strcmp(argv[i],"-fl") == 0 || strcmp(argv[i],"-flmin"))
+    else if(strcmp(argv[i],"-fl") == 0 || strcmp(argv[i],"-flmin") == 0)
     {
       validate_length_min = 10;
       if(i+1 < argc)
