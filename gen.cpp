@@ -4,7 +4,7 @@
 #include "unistd.h"
 
 static const int version_maj = 0;
-static const int version_min = 11;
+static const int version_min = 12;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -144,7 +144,8 @@ int validate_low_alpha_e        = 0;
 int validate_numeric_e          = 0;
 int validate_alphanumeric_e     = 0;
 int validate_non_alphanumeric_e = 0;
-int validate_length = 0;
+int validate_length_min = 0;
+int validate_length_max = max_pass_len;
 int checkpoint = 0;
 int unroll = 1000;
 int normalize = 0;
@@ -176,7 +177,8 @@ int main(int argc, char **argv)
       fprintf(stdout,"   aA# alphanumeric character [a-zA-Z0-9]\n");
       fprintf(stdout,"   @ non-alphanumeric character [!a-zA-Z0-9]\n");
       fprintf(stdout,"   optional number specifies required amount in character set (default 1)\n");
-      fprintf(stdout,"-fl filter output by specified length (default 10)\n");
+      fprintf(stdout,"-flmin filter output ensuring specified minimum length (default 10)\n");
+      fprintf(stdout,"-flmax filter output ensuring specified maximum length (default 20)\n");
       fprintf(stdout,"-c specifies how often to checkpoint via progress file (default \"seed.progress\" if blank)\n");
       fprintf(stdout,"-r specifies to resume from progress file (default \"seed.progress\" if blank)\n");
       exit(0);
@@ -292,13 +294,22 @@ int main(int argc, char **argv)
         if(parse_number(argv[i], &validate_non_alphanumeric_e) < 0) i--;
       }
     }
-    else if(strcmp(argv[i],"-fl") == 0)
+    else if(strcmp(argv[i],"-fl") == 0 || strcmp(argv[i],"-flmin"))
     {
-      validate_length = 10;
+      validate_length_min = 10;
       if(i+1 < argc)
       {
         i++;
-        if(parse_number(argv[i], &validate_length) < 0) i--;
+        if(parse_number(argv[i], &validate_length_min) < 0) i--;
+      }
+    }
+    else if(strcmp(argv[i],"-flmax") == 0)
+    {
+      validate_length_max = 20;
+      if(i+1 < argc)
+      {
+        i++;
+        if(parse_number(argv[i], &validate_length_max) < 0) i--;
       }
     }
     else if(strcmp(argv[i],"-c") == 0)
@@ -402,7 +413,8 @@ int main(int argc, char **argv)
     done = !sprint_group(g, 0, lockholder, &passholder_p);
     e++;
     *passholder_p = '\0';
-    if(validate_length <= passholder_p-passholder)
+    int plength = passholder_p-passholder;
+    if(validate_length_min <= plength && validate_length_max >= plength)
     {
       int alpha_e = 0;
       int up_alpha_e = 0;

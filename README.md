@@ -44,7 +44,7 @@ It can also be run (and behaves as expected) in standard unix-y way
 
 `-b #` Specifies buffer size (bytes) to fill before printing to output (default 1M, experimentally doesn't really alter perf as long as its bigger than ~20 bytes)
 
-`-f[aA|A|a|#|aA#|@|l] [#]` Filters output by properties (use --help for details). Optional number as argument, quantifying requirement. `expandpass -f# -fa -fA -fl 10`
+`-f[aA|A|a|#|aA#|@|lmin|lmax] [#]` Filters output by properties (use --help for details). Optional number as argument, quantifying requirement. `expandpass -f# -fa -fA -flmin 10`
 
 `-c # [progress_file]` Sets how often (default: never) to save progress to a progress file ("set Checkpoint"). Will output # passwords before writing progress to a file (also optionally specified; default: "seed.progress"). `expandpass -c 1000000 my_seed.progress`
 
