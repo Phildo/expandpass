@@ -1,2 +1,2 @@
 ERROR: Invalid characters within option
-line 1 ( < { > "A" >blah it doesn't matter what I type here } "B" > )
+line 2 ( < { > "A" >blah it doesn't matter what I type here } "B" > )

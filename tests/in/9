@@ -1,3 +1,3 @@
-# should fail because of poor formatting, but in vblah doesn't
+# should fail because of poor formatting
 < { > "A" >blah it doesn't matter what I type here } "B" >
 
