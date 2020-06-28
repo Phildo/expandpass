@@ -1,7 +1,47 @@
+#ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS
+extern "C" {
+#endif
+
 #include "stdio.h"
-#include "stdlib.h"
+#include <stdlib.h>
+#include <stdio.h>
 #include "string.h"
+#ifndef _WIN32
 #include "unistd.h"
+#endif
+
+#ifdef _WIN32
+size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of this c11 api
+{
+  const int bsize = 1024;
+  char buffer[bsize];
+  if(fgets(buffer,*n,stream) == 0) return 0;
+  for(int i = 0; i < bsize; i++)
+  {
+    if(buffer[i] == '\n' || buffer[i] == '\0')
+    {
+      if(i == bsize) { fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)"); exit(1); }
+      int len = i+1;
+      char hold = buffer[len];
+      buffer[len] = '\0';
+      strcpy(*lineptr,buffer);
+      buffer[len] = hold;
+      for(i++; i < bsize; i++)
+      {
+        if(buffer[i] == '\0')
+        {
+          fseek(stream,-(i-len),SEEK_CUR);//rewind
+          return len+1;
+        }
+      }
+      fseek(stream,-(bsize-len),SEEK_CUR);//rewind
+      return len+1;
+    }
+  }
+  fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)"); exit(1);
+}
+#endif
 
 static const int version_maj = 0;
 static const int version_min = 12;
@@ -140,11 +180,11 @@ char *buff;
 int buff_i;
 char utag_map[max_utag_count];
 
-char *seed_file = "seed.txt";
+const char *seed_file = "seed.txt";
 int seed_specified = 0;
 char *password_file = 0;
-char *resume_file = "seed.progress";
-char *checkpoint_file = "seed.progress";
+const char *resume_file = "seed.progress";
+const char *checkpoint_file = "seed.progress";
 char checkpoint_file_bak[512];
 int estimate = 0;
 int estimate_rate = 600000;
@@ -497,7 +537,7 @@ void append_password(char *password)
 char smart_sub(int i, char key)
 {
   static char stub[2] = "a";
-  char *c;
+  const char *c;
   switch(key)
   {
     case 'a': c = "A4"; break;
@@ -1221,7 +1261,11 @@ group *parse()
   FILE *fp;
   char *buff;
 
+  #ifdef _WIN32
+  if(false) ;
+  #else
   if(!seed_specified && !isatty(fileno(stdin))) fp = stdin;
+  #endif
   else
   {
     fp = fopen(seed_file, "r");
@@ -1605,10 +1649,14 @@ void populate_utag_map(group *g, char *utag_map)
 {
   if(g->utag) utag_map[g->utag]++;
   if(!g->child_utag) return;
-  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
+  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
       populate_utag_map(&g->childs[i],utag_map);
+  }
+  if(g->type == GROUP_TYPE_OPTION)
+  {
+    populate_utag_map(&g->childs[0],utag_map);
   }
 }
 
@@ -1967,4 +2015,8 @@ void resume_group(group *g, FILE *fp)
     }
   }
 }
+
+#ifdef _WIN32
+} //extern "C"
+#endif
 
