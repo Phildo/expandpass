@@ -58,6 +58,12 @@ static const int ERROR_MODIFICATION_EMPTY_GAMUT  = 8;
 static const int ERROR_NULL_CHILD                = 9;
 static const int ERROR_UTAG_RANGE                = 10;
 
+int buff_len = 1024*1024; //1MB
+const int max_pass_len = 300;
+const int max_read_line_len = 1024;
+const int max_utag_count = 16;
+char *devnull;
+
 enum GROUP_TYPE
 {
   GROUP_TYPE_NULL,
@@ -116,8 +122,8 @@ struct group
   modification *mods;
   int n_mods;
   int mod_i;
-  int utag;
-  int child_utag;
+  char utag[max_utag_count];
+  char child_utag;
 };
 void zero_group(group *g)
 {
@@ -129,7 +135,7 @@ void zero_group(group *g)
   g->mods = 0;
   g->n_mods = 0;
   g->mod_i = 0;
-  g->utag = 0;
+  memset(g->utag,0,sizeof(g->utag));
   g->child_utag = 0;
 }
 
@@ -140,12 +146,6 @@ struct parse_error
   char *txt;
 };
 
-int buff_len = 1024*1024; //1MB
-const int max_pass_len = 300;
-const int max_read_line_len = 1024;
-const int max_utag_count = 16;
-char *devnull;
-
 void append_password(char *password);
 char smart_sub(int i, char key);
 void basic_smart_substitute(int i, int sub_i, char *s);
@@ -153,10 +153,12 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
 int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
 int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, parse_error *e);
 int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
-int parse_utag(FILE *fp, int *line_n, char *buff, char **b, parse_error *e);
+int parse_utag(FILE *fp, int *line_n, char *buff, char **b, char *utag, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
-int preprocess_group(group *g);
+void merge_utags(group *dst, group *src);
+int elevate_utags(group *g, group *parent, group *parent_option_child);
+void preprocess_group(group *g);
 group *unroll_group(group *g);
 void collapse_group(group *g, group *root, int handle_gamuts);
 void print_seed(group *g, int print_progress, int selected, int indent);
@@ -173,6 +175,7 @@ void checkpoint_to_file(group *g);
 void resume_from_file(group *g);
 int parse_number(char *b, int *n);
 void print_number(int n);
+void print_utag(char *utag);
 
 int ***cache_permute_indices;
 int n_cached_permute_indices;
@@ -408,11 +411,16 @@ int main(int argc, char **argv)
 
   collapse_group(g,g,0);
   preprocess_group(g);
+  elevate_utags(g,0,0);
 
   if(unroll)
   {
     group *og = g;
+    memset(utag_map,0,sizeof(utag_map));
+    memset(utag_visit,0,sizeof(utag_visit));
     g = unroll_group(og);
+    memset(utag_map,0,sizeof(utag_map));
+    memset(utag_visit,0,sizeof(utag_visit));
     if(g != og) free(og);
   }
 
@@ -686,7 +694,6 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
     }
 
     char *c;
-    int valid_utag;
     switch(g->type)
     {
       case GROUP_TYPE_SEQUENCE:
@@ -694,12 +701,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       case GROUP_TYPE_PERMUTE:
         g->n = 0;
         *b = s;
-        if(g->type == GROUP_TYPE_SEQUENCE)
-        {
-          valid_utag = parse_utag(fp, line_n, buff, b, e);
-          if(valid_utag == -1) return 0;
-          else g->utag = valid_utag;
-        }
+        if(g->type == GROUP_TYPE_SEQUENCE && !parse_utag(fp, line_n, buff, b, g->utag, e)) return 0;
         return parse_childs(fp, line_n, buff, b, g, e);
         break;
       case GROUP_TYPE_CHARS:
@@ -757,7 +759,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
   return 1;
 }
 
-int parse_utag(FILE *fp, int *line_n, char *buff, char **b, parse_error *e)
+int parse_utag(FILE *fp, int *line_n, char *buff, char **b, char *utag, parse_error *e)
 {
   int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
   size_t line_buff_len = max_read_line_len;
@@ -781,21 +783,23 @@ int parse_utag(FILE *fp, int *line_n, char *buff, char **b, parse_error *e)
     else break;
   }
 
-  int utag = 0;
+  int u = 0;
+  int i = 0;
   int d;
-  d = parse_number(s,&utag);
-  if(d != -1)
+  while((d = parse_number(s,&u)) != -1)
   {
-    if(utag < 1 || utag >= max_utag_count)
+    if(u < 1 || u >= max_utag_count)
     {
       e->error = ERROR_UTAG_RANGE;
       sprintf(e->txt,"ERROR: unique tag outside of valid range [1-%d]\nline %d\n",max_utag_count-1,*line_n);
-      return -1; //unfortunate case of error code being -1
+      return 0;
     }
     s += d;
+    utag[i++] = u;
+    if(*s == ',') s++;
   }
   *b = s;
-  return utag;
+  return 1;
 }
 
 int parse_number(char *b, int *n)
@@ -823,6 +827,12 @@ void print_number(int n)
     n -= d*place;
     place /= 10;
   }
+}
+void print_utag(char *utag)
+{
+  if(utag[0]) print_number(utag[0]);
+  for(int i = 1; utag[i] != 0 && i < max_utag_count; i++)
+  {   printf(","); print_number(utag[i]); }
 }
 
 int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification *m, parse_error *e)
@@ -1076,7 +1086,34 @@ void absorb_gamuts(modification *m, group *g)
   }
 }
 
-int preprocess_group(group *g)
+void merge_utags(group *dst, group *src)
+{
+  for(int i = 0; src->utag[i] != 0 && i < max_utag_count; i++)
+  {
+    int j = 0;
+    for(j = 0; dst->utag[j] != 0 && dst->utag[j] != src->utag[i] && j < max_utag_count; j++)
+      ;
+    if(dst->utag[j] == 0) dst->utag[j] = src->utag[i];
+    src->utag[i] = 0;
+  }
+}
+
+int elevate_utags(group *g, group *parent, group *parent_option_child)
+{
+  if(parent && parent->type == GROUP_TYPE_OPTION) parent_option_child = g;
+  if(parent_option_child && parent_option_child != g)
+    merge_utags(parent_option_child,g);
+  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
+  {
+    for(int i = 0; i < g->n; i++)
+      g->child_utag = (elevate_utags(&g->childs[i],g,parent_option_child) || g->child_utag);
+  }
+
+  if(g->utag[0] || g->child_utag) return 1;
+  return 0;
+}
+
+void preprocess_group(group *g)
 {
   //alloc/init modifications
   modification *m;
@@ -1156,16 +1193,8 @@ int preprocess_group(group *g)
 
   //recurse
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
-  {
-    int utag;
     for(int i = 0; i < g->n; i++)
-    {
-      utag = preprocess_group(&g->childs[i]);
-      if(!g->child_utag) g->child_utag = utag; //will overwrite; that's fine
-    }
-  }
-  if(g->utag) return g->utag;
-  else        return g->child_utag;
+      preprocess_group(&g->childs[i]);
 }
 
 void collapse_group(group *g, group *root, int handle_gamuts)
@@ -1183,23 +1212,15 @@ void collapse_group(group *g, group *root, int handle_gamuts)
     for(int i = 0; i < g->n; i++)
     {
       group *c = &g->childs[i];
-      int utags = 0;
-      if(c->utag) utags++;
       if(c->type == GROUP_TYPE_SEQUENCE || c->type == GROUP_TYPE_OPTION || c->type == GROUP_TYPE_PERMUTE)
       {
         if(c->n == 1 && c->n_mods == 0)
         {
-          if(c->utag && c->childs[0].type != GROUP_TYPE_SEQUENCE) continue;
-          if(c->childs[0].utag) utags++;
-          if(utags == 2) utags--; //don't collapse
-          else
-          {
-            if(c->utag) c->childs[0].utag = c->utag; //will get copied to c
-            group *oc = c->childs;
-            *c = c->childs[0];
-            free(oc);
-            i--;
-          }
+          merge_utags(&c->childs[0],c); //childs[0] will become c
+          group *oc = c->childs;
+          *c = c->childs[0];
+          free(oc);
+          i--;
         }
         else if(c->n < 1)
         {
@@ -1216,30 +1237,23 @@ void collapse_group(group *g, group *root, int handle_gamuts)
   //collapse like-parent/child options/sequences
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION)
   {
-    int utags = 0;
-    if(g->utag) utags++;
     for(int i = 0; i < g->n; i++)
     {
       group *c = &g->childs[i];
-      if(c->utag) utags++;
-      if(utags == 2) utags--; //don't collapse
-      else
+      if(c->n_mods == 0 && c->type == g->type)
       {
-        if(c->n_mods == 0 && c->type == g->type)
-        {
-          if(c->utag) g->utag = c->utag; //keep utags at 1
-          g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
-          c = &g->childs[i]; //NEED TO RE-ASSIGN C, AS G HAS BEEN REALLOCED
-          group *oc = c->childs;
-          int ocn = c->n;
-          for(int j = 0; j < g->n-i; j++)
-            g->childs[g->n-1+ocn-j-1] = g->childs[g->n-1-j];
-          for(int j = 0; j < ocn; j++)
-            g->childs[i+j] = oc[j];
-          free(oc);
-          g->n += ocn-1;
-          i--;
-        }
+        merge_utags(g,c);
+        g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
+        c = &g->childs[i]; //need to re-assign c, as g has been realloced
+        group *oc = c->childs;
+        int ocn = c->n;
+        for(int j = 0; j < g->n-i; j++)
+          g->childs[g->n-1+ocn-j-1] = g->childs[g->n-1-j];
+        for(int j = 0; j < ocn; j++)
+          g->childs[i+j] = oc[j];
+        free(oc);
+        g->n += ocn-1;
+        i--;
       }
     }
   }
@@ -1532,27 +1546,46 @@ int smodify_group(group *g, int inert, char *lockholder, char *buff, char **buff
   return inert;
 }
 
+void stamp_utag(char *utag, char *utag_map, int dir)
+{
+  for(int i = 0; utag[i] != 0 && i < max_utag_count; i++)
+    utag_map[utag[i]] += dir;
+}
+
+int utag_conflict(char *utag, char *utag_map)
+{
+  for(int i = 0; utag[i] != 0 && i < max_utag_count; i++)
+    if(utag_map[utag[i]]) return 1;
+  return 0;
+}
+
+int utag_overconflict(char *utag, char *utag_map)
+{
+  for(int i = 0; utag[i] != 0 && i < max_utag_count; i++)
+    if(utag_map[utag[i]] > 1) return 1;
+  return 0;
+}
+
 void pre_advance_option_child(group *g, char *utag_map, char *utag_visit)
 {
+  stamp_utag(g->childs[g->i].utag,utag_map,-1); //untag self
   zero_progress_group(&g->childs[g->i]);
-  utag_map[g->childs[g->i].utag]--;
   g->i++;
   if(g->i == g->n) g->i = 0;
-  if(g->childs[g->i].utag) utag_map[g->childs[g->i].utag]++;
+  stamp_utag(g->childs[g->i].utag,utag_map,1);
 }
 
 int advance_option_child(group *g, char *utag_map, char *utag_visit)
 {
-  if(g->childs[g->i].utag) utag_map[g->childs[g->i].utag]--; //untag self
+  stamp_utag(g->childs[g->i].utag,utag_map,-1); //untag self
   g->i++;
   while(
     g->i < g->n && //room to advance
-    g->childs[g->i].utag && //has a utag
-    !utag_visit[g->childs[g->i].utag] && //is first in line of utags to advance
-    utag_map[g->childs[g->i].utag] //mutex
+    !utag_conflict(g->childs[g->i].utag,utag_visit) && //is first in line of utags to advance
+    utag_conflict(g->childs[g->i].utag,utag_map) //mutex
   ) g->i++;
   if(g->i == g->n) g->i = 0;
-  if(g->childs[g->i].utag) utag_map[g->childs[g->i].utag]++; //tag next (possibility to result in 2 utag if i == 0)
+  stamp_utag(g->childs[g->i].utag,utag_map,1); //tag next (possibility to result in 2 utag if i == 0)
   if(g->i != 0) return 1;
   return 0;
 }
@@ -1583,9 +1616,9 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
       }
       break;
     case GROUP_TYPE_OPTION:
+      if(!inert && utag_overconflict(g->childs[g->i].utag,utag_map) && !utag_conflict(g->childs[g->i].utag,utag_visit)) pre_advance_option_child(g, utag_map, utag_visit);
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
-        if(!inert && g->childs[g->i].utag && utag_map[g->childs[g->i].utag] > 1 && !utag_visit[g->childs[g->i].utag]) pre_advance_option_child(g, utag_map, utag_visit);
         sprint_group(&g->childs[g->i], 1, lockholder, utag_map, utag_visit, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
@@ -1596,12 +1629,11 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
       }
       else
       {
-        if(!inert && g->childs[g->i].utag && utag_map[g->childs[g->i].utag] > 1 && !utag_visit[g->childs[g->i].utag]) pre_advance_option_child(g, utag_map, utag_visit); //pre-advance!
         inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, utag_visit, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert) inert = advance_option_child(g, utag_map, utag_visit);
       }
-      if(g->childs[g->i].utag) utag_visit[g->childs[g->i].utag]++;
+      if(g->childs[g->i].utag) stamp_utag(g->childs[g->i].utag,utag_visit,1);
       break;
     case GROUP_TYPE_PERMUTE:
       if(!inert && g->n_mods) //this is incredibly inefficient
@@ -1647,7 +1679,7 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
 
 void populate_utag_map(group *g, char *utag_map)
 {
-  if(g->utag) utag_map[g->utag]++;
+  stamp_utag(g->utag, utag_map, 1);
   if(!g->child_utag) return;
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_PERMUTE)
   {
@@ -1833,11 +1865,11 @@ group *unroll_group(group *g)
       group *ng = (group *)malloc(sizeof(group));
       zero_group(ng);
       ng->type = GROUP_TYPE_OPTION;
-      ng->utag = g->utag;
+      merge_utags(ng,g);
       group *cg;
       while(!done)
       {
-        done = !sprint_group(g, 0, lockholder, 0, 0, &passholder_p);
+        done = !sprint_group(g, 0, lockholder, utag_map, utag_visit, &passholder_p);
         *passholder_p = '\0';
         ng->n++;
         if(ng->n == 1) ng->childs = (group *)malloc(sizeof(group));
@@ -1880,24 +1912,23 @@ void print_seed(group *g, int print_progress, int selected, int indent)
   switch(g->type)
   {
     case GROUP_TYPE_SEQUENCE:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("<"); if(g->utag) print_number(g->utag); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("<"); if(g->utag[0]) print_utag(g->utag); printf("\n");
       for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],print_progress,0,indent+1);
       for(int i = 0; i < indent; i++) printf("  "); printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_OPTION:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("{"); if(g->utag) print_number(g->utag); printf("\n");
-      if(print_progress) { for(int i = 0; i < g->n; i++) { print_seed(&g->childs[i],print_progress,i == g->i,indent+1); } }
-      else               { for(int i = 0; i < g->n; i++) { print_seed(&g->childs[i],print_progress,        0,indent+1); } }
-      for(int i = 0; i < indent; i++) printf("  "); printf("}"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("{"); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("\n");
+      for(int i = 0; i < g->n; i++) { print_seed(&g->childs[i],print_progress,print_progress && selected && i == g->i,indent+1); }
+      for(int i = 0; i < indent; i++) printf("  "); if(g->utag[0]) printf(">"); printf("}"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_PERMUTE:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("("); if(g->utag) print_number(g->utag); printf("\n");
-      if(print_progress) { for(int i = 0; i < g->n; i++) print_seed(&g->childs[cache_permute_indices[g->n][g->i+1][i]],print_progress,0,indent+1); }
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("("); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("\n");
+      if(print_progress) { for(int i = 0; i < g->n; i++) print_seed(&g->childs[cache_permute_indices[g->n][g->i+1][i]],print_progress,selected,indent+1); }
       else               { for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],                                     print_progress,0,indent+1); }
-      for(int i = 0; i < indent; i++) printf("  "); printf(")"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(g->utag[0]) printf(">"); printf(")"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_CHARS:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("\"%s\"",g->chars); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("\"%s\"",g->chars); if(g->utag[0]) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     default: //appease compiler
       break;
