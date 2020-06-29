@@ -1635,7 +1635,7 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert) inert = advance_option_child(g, utag_map, utag_visit);
       }
-      if(g->childs[g->i].utag) stamp_utag(g->childs[g->i].utag,utag_visit,1);
+      stamp_utag(g->childs[g->i].utag,utag_visit,1);
       break;
     case GROUP_TYPE_PERMUTE:
       if(!inert && g->n_mods) //this is incredibly inefficient
