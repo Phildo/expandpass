@@ -818,8 +818,9 @@ int parse_number(char *b, int *n)
 }
 void print_number(int n)
 {
-  int place = 1;
-  while(place < n) place *= 10;
+  int place = 10;
+  while(place <= n) place *= 10;
+  place /= 10;
   while(place > 0)
   {
     int d = n/place;
@@ -1242,6 +1243,7 @@ void collapse_group(group *g, group *root, int handle_gamuts)
       group *c = &g->childs[i];
       if(c->n_mods == 0 && c->type == g->type)
       {
+        if(g->type == GROUP_TYPE_OPTION && c->utag[0]) continue;
         merge_utags(g,c);
         g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
         c = &g->childs[i]; //need to re-assign c, as g has been realloced
@@ -1917,15 +1919,15 @@ void print_seed(group *g, int print_progress, int selected, int indent)
       for(int i = 0; i < indent; i++) printf("  "); printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_OPTION:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("{"); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("{"); printf("\n");
       for(int i = 0; i < g->n; i++) { print_seed(&g->childs[i],print_progress,print_progress && selected && i == g->i,indent+1); }
-      for(int i = 0; i < indent; i++) printf("  "); if(g->utag[0]) printf(">"); printf("}"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); printf("}"); if(g->utag[0]) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_PERMUTE:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("("); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("("); printf("\n");
       if(print_progress) { for(int i = 0; i < g->n; i++) print_seed(&g->childs[cache_permute_indices[g->n][g->i+1][i]],print_progress,selected,indent+1); }
       else               { for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],                                     print_progress,0,indent+1); }
-      for(int i = 0; i < indent; i++) printf("  "); if(g->utag[0]) printf(">"); printf(")"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); printf(")"); if(g->utag[0]) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_CHARS:
       for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag[0]) { printf("<"); print_utag(g->utag); } printf("\"%s\"",g->chars); if(g->utag[0]) printf(">"); if(selected) printf("*"); printf("\n");
