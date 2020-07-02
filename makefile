@@ -1,7 +1,7 @@
 EXE=expandpass
 SRC=gen.cpp
 NOWARN=-Wno-write-strings
-ARGS=
+ARGS=-i tests/in/13
 
 make: $(EXE)
 	
