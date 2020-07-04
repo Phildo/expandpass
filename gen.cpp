@@ -158,14 +158,18 @@ group *parse();
 unsigned long long int estimate_group(group *g);
 void merge_utags(group *dst, group *src);
 unsigned int elevate_utags(group *g, group *parent, group *parent_option_child);
+void stamp_utag(unsigned int utag, char *utag_map, int dir);
+int utag_conflict(unsigned int utag, char *utag_map);
+int utag_overconflicted(unsigned int utag, char *utag_map);
+int utag_map_overconflicted(char *utag_map);
 void preprocess_group(group *g);
 group *unroll_group(group *g);
 void collapse_group(group *g, group *root, int handle_gamuts);
 void print_seed(group *g, int print_progress, int selected, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
-int advance_option_child(group *g, char *utag_map, char *utag_visit);
-int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *utag_visit, char **buff_p);
+int advance_option_child(group *g, char *utag_map);
+int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **buff_p);
 void populate_utag_map(group *g, char *utag_map);
 void zero_progress_group(group *g, char *utag_map);
 void checkpoint_group(group *g, FILE *fp);
@@ -183,7 +187,6 @@ FILE *fp;
 char *buff;
 int buff_i;
 char utag_map[max_utag_count];
-char utag_visit[max_utag_count];
 
 group *mg;
 
@@ -416,10 +419,8 @@ int main(int argc, char **argv)
   {
     group *og = g;
     memset(utag_map,0,sizeof(utag_map));
-    memset(utag_visit,0,sizeof(utag_visit));
     g = unroll_group(og);
     memset(utag_map,0,sizeof(utag_map));
-    memset(utag_visit,0,sizeof(utag_visit));
     if(g != og) free(og);
   }
 
@@ -481,11 +482,11 @@ int main(int argc, char **argv)
     int preskip = 0;
     if(g->child_utag)
     {
-      //for(int i = 1; i < max_utag_count; i++) if(utag_map[i] > 1) preskip = 1;
-      memset(utag_visit,0,sizeof(utag_visit));
+      while(!done && utag_map_overconflicted(utag_map))
+        done = !sprint_group(g, 0, lockholder, utag_map, &devnull);
     }
     //print_seed(g,1,1,0);
-    done = !sprint_group(g, 0, lockholder, utag_map, utag_visit, &passholder_p);
+    if(!done) done = !sprint_group(g, 0, lockholder, utag_map, &passholder_p);
     e++;
     *passholder_p = '\0';
     int plength = passholder_p-passholder;
@@ -1601,13 +1602,12 @@ int utag_map_overconflicted(char *utag_map)
   return 0;
 }
 
-int advance_option_child(group *g, char *utag_map, char *utag_visit)
+int advance_option_child(group *g, char *utag_map)
 {
   stamp_utag(g->childs[g->i].utag,utag_map,-1); //untag self
   g->i++;
   while(
     g->i < g->n && //room to advance
-    //!utag_conflict(g->childs[g->i].utag,utag_visit) && //is first in line of utags to advance
     utag_conflict(g->childs[g->i].utag,utag_map) //mutex
   ) g->i++;
   if(g->i == g->n) g->i = 0;
@@ -1617,7 +1617,7 @@ int advance_option_child(group *g, char *utag_map, char *utag_visit)
 }
 
 //prints current state, and manages/advances to _next_ state
-int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *utag_visit, char **buff_p) //"inert = 1" is the cue to stop incrementing as the rest of the password is written
+int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **buff_p) //"inert = 1" is the cue to stop incrementing as the rest of the password is written
 {
   char *buff = *buff_p;
   switch(g->type)
@@ -1626,18 +1626,18 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
         for(int i = 0; i < g->n; i++)
-          sprint_group(&g->childs[i], 1, lockholder, utag_map, utag_visit, buff_p); //dry run
+          sprint_group(&g->childs[i], 1, lockholder, utag_map, buff_p); //dry run
         inert = smodify_group(g, inert, lockholder, buff, buff_p); //to let modifications get a chance to increment
         if(!inert) //still hot?
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[i], inert, lockholder, utag_map, utag_visit, &devnull); //redo dry run, updating state (but printing to garbage)
+            inert = sprint_group(&g->childs[i], inert, lockholder, utag_map, &devnull); //redo dry run, updating state (but printing to garbage)
         }
       }
       else //inert OR no modifications means no dry run necessary
       {
         for(int i = 0; i < g->n; i++)
-          inert = sprint_group(&g->childs[i], inert, lockholder, utag_map, utag_visit, buff_p);
+          inert = sprint_group(&g->childs[i], inert, lockholder, utag_map, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
       }
       break;
@@ -1645,42 +1645,31 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
       //int skip = !inert && 
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
-        sprint_group(&g->childs[g->i], 1, lockholder, utag_map, utag_visit, buff_p);
+        sprint_group(&g->childs[g->i], 1, lockholder, utag_map, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
-          inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, utag_visit, &devnull);
-          if(!inert) inert = advance_option_child(g, utag_map, utag_visit);
+          inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, &devnull);
+          if(!inert) inert = advance_option_child(g, utag_map);
         }
       }
       else
       {
-        inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, utag_visit, buff_p);
+        inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
-        if(!inert) inert = advance_option_child(g, utag_map, utag_visit);
+        if(!inert) inert = advance_option_child(g, utag_map);
       }
-      while(inert && utag_map_overconflicted(utag_map))
-      {
-        if(utag_overconflict(g->childs[g->i].utag,utag_map))
-          inert = advance_option_child(g,utag_map,utag_visit);
-        else
-        {
-          inert = 0;
-          zero_progress_group(g,utag_map);
-        }
-      }
-      //stamp_utag(g->childs[g->i].utag,utag_visit,1);
       break;
     case GROUP_TYPE_PERMUTE:
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
         for(int i = 0; i < g->n; i++)
-          sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], 1, lockholder, utag_map, utag_visit, buff_p);
+          sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], 1, lockholder, utag_map, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, utag_map, utag_visit, &devnull);
+            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, utag_map, &devnull);
           if(!inert)
           {
             g->i++;
@@ -1692,7 +1681,7 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char *ut
       else
       {
         for(int i = 0; i < g->n; i++)
-          inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, utag_map, utag_visit, buff_p);
+          inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, utag_map, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
@@ -1908,7 +1897,7 @@ group *unroll_group(group *g)
       group *cg;
       while(!done)
       {
-        done = !sprint_group(g, 0, lockholder, utag_map, utag_visit, &passholder_p);
+        done = !sprint_group(g, 0, lockholder, utag_map, &passholder_p);
         *passholder_p = '\0';
         ng->n++;
         if(ng->n == 1) ng->childs = (group *)malloc(sizeof(group));
