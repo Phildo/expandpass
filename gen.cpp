@@ -491,7 +491,7 @@ int main(int argc, char **argv)
     //print_seed(g,1,1,0);
     if(g->child_tag)
     {
-      if(utag_map_overconflicted(map)) done = advance_group(g, 0); //TODO: optimize harvesting map without double search (possible in 99% of cases)
+      if(utag_map_overconflicted(map)) done = advance_group(g, 0);
       if(done) break;
       done = !sprint_group(g, 0, lockholder, zero_utag_map(&map), &passholder_p);
     }
