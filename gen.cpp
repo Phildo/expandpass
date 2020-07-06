@@ -44,7 +44,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
 #endif
 
 static const int version_maj = 0;
-static const int version_min = 14;
+static const int version_min = 15;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -62,7 +62,14 @@ int buff_len = 1024*1024; //1MB
 const int max_pass_len = 300;
 const int max_read_line_len = 1024;
 const int max_utag_count = 16;
+const int max_utag_stack = 4;
 char *devnull;
+
+typedef unsigned int utag;
+typedef struct
+{
+  utag map[max_utag_stack];
+} utag_map;
 
 enum GROUP_TYPE
 {
@@ -122,7 +129,7 @@ struct group
   modification *mods;
   int n_mods;
   int mod_i;
-  unsigned int utag;
+  utag tag;
   unsigned int child_utag;
 };
 void zero_group(group *g)
@@ -135,7 +142,7 @@ void zero_group(group *g)
   g->mods = 0;
   g->n_mods = 0;
   g->mod_i = 0;
-  g->utag = 0;
+  g->tag = 0;
   g->child_utag = 0;
 }
 
@@ -156,29 +163,34 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
 int parse_utag(FILE *fp, int *line_n, char *buff, char **b, unsigned int *utag, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
-void merge_utags(group *dst, group *src);
+utag stamp_utag(utag tag, utag dst, int inc);
+utag_map *stamp_utag_map(utag tag, utag_map *map, int inc);
+void merge_utag_map(utag_map map, utag_map *dst); //slow if many conflicts
+int utag_conflict(utag tag, utag dst);
+int utag_map_conflict(utag tag, utag_map map);
+int utag_map_overconflict(utag tag, utag_map map);
+int utag_map_overconflicted(utag_map map);
+utag_map *zero_utag_map(utag_map *map);
+void absorb_utag(group *dst, group *src);
 unsigned int elevate_utags(group *g, group *parent, group *parent_option_child);
-void stamp_utag(unsigned int utag, char *utag_map, int dir);
-int utag_conflict(unsigned int utag, char *utag_map);
-int utag_overconflicted(unsigned int utag, char *utag_map);
-int utag_map_overconflicted(char *utag_map);
 void preprocess_group(group *g);
 group *unroll_group(group *g);
 void collapse_group(group *g, group *root, int handle_gamuts);
 void print_seed(group *g, int print_progress, int selected, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
-int advance_option_child(group *g, char *utag_map);
-int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **buff_p);
-void populate_utag_map(group *g, char *utag_map);
-void zero_progress_group(group *g, char *utag_map);
+int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
+utag_map *merge_group_utag_map(group *g, utag_map *map);
+int advance_group(group *g, utag parent_tag);
+void zero_progress_group(group *g);
+void zero_progress_modifications(group *g);
 void checkpoint_group(group *g, FILE *fp);
 void resume_group(group *g, FILE *fp);
 void checkpoint_to_file(group *g);
 void resume_from_file(group *g);
 int parse_number(char *b, int *n);
 void print_number(int n);
-void print_utag(unsigned int utag);
+void print_utag(utag tag);
 
 int ***cache_permute_indices;
 int n_cached_permute_indices;
@@ -186,7 +198,6 @@ int n_cached_permute_indices;
 FILE *fp;
 char *buff;
 int buff_i;
-char utag_map[max_utag_count];
 
 group *mg;
 
@@ -418,9 +429,7 @@ int main(int argc, char **argv)
   if(unroll)
   {
     group *og = g;
-    memset(utag_map,0,sizeof(utag_map));
     g = unroll_group(og);
-    memset(utag_map,0,sizeof(utag_map));
     if(g != og) free(og);
   }
 
@@ -459,9 +468,6 @@ int main(int argc, char **argv)
     exit(0);
   }
 
-  memset(utag_map,0,sizeof(utag_map));
-  populate_utag_map(g, utag_map);
-
   if(resume)
     resume_from_file(g);
 
@@ -477,16 +483,18 @@ int main(int argc, char **argv)
 
   int done = 0;
   long long int e = 0;
+  utag_map map;
   while(!done)
   {
     int preskip = 0;
+    //print_seed(g,1,1,0);
     if(g->child_utag)
     {
-      while(!done && utag_map_overconflicted(utag_map))
-        done = !sprint_group(g, 0, lockholder, utag_map, &devnull);
+      merge_group_utag_map(g,zero_utag_map(&map));
+      if(utag_map_overconflicted(map)) done = advance_group(g, 0); //TODO: optimize harvesting map without double search (possible in 99% of cases)
+      if(!done) done = !sprint_group(g, 0, lockholder, &passholder_p);
     }
-    //print_seed(g,1,1,0);
-    if(!done) done = !sprint_group(g, 0, lockholder, utag_map, &passholder_p);
+    else done = !sprint_group(g, 0, lockholder, &passholder_p);
     e++;
     *passholder_p = '\0';
     int plength = passholder_p-passholder;
@@ -702,7 +710,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       case GROUP_TYPE_PERMUTE:
         g->n = 0;
         *b = s;
-        if(g->type == GROUP_TYPE_SEQUENCE && !parse_utag(fp, line_n, buff, b, &g->utag, e)) return 0;
+        if(g->type == GROUP_TYPE_SEQUENCE && !parse_utag(fp, line_n, buff, b, &g->tag, e)) return 0;
         return parse_childs(fp, line_n, buff, b, g, e);
         break;
       case GROUP_TYPE_CHARS:
@@ -829,12 +837,12 @@ void print_number(int n)
     place /= 10;
   }
 }
-void print_utag(unsigned int utag)
+void print_utag(utag tag)
 {
   int first = 1;
   for(int i = 0; i < max_utag_count; i++)
   {
-    if(utag &= (1 << i))
+    if(tag &= (1 << i))
     {
       if(!first)printf(",");first = 0;
       print_number(i+1);
@@ -1093,22 +1101,105 @@ void absorb_gamuts(modification *m, group *g)
   }
 }
 
-void merge_utags(group *dst, group *src)
+utag stamp_utag(utag tag, utag dst, int inc)
 {
-  dst->utag |= src->utag;
-  src->utag = 0;
+  if(inc) return dst |  tag;
+  else    return dst & ~tag;
+}
+
+utag_map *stamp_utag_map(utag tag, utag_map *map, int inc)
+{
+  if(inc)
+  {
+    utag carry = 0;
+    for(int i = 0; tag && i < max_utag_stack; i++)
+    {
+      carry = tag & map->map[i];
+      map->map[i] ^= tag;
+      tag = carry;
+    }
+    if(tag)
+    {
+      for(int i = 0; tag && i < max_utag_stack; i++)
+        map->map[i] |= tag; //don't overflow; max out bits
+    }
+  }
+  else
+  {
+    utag carry = 0;
+    for(int i = 0; tag && i < max_utag_stack; i++)
+    {
+      carry = tag & ~map->map[i];
+      map->map[i] ^= tag;
+      tag = carry;
+    }
+    if(tag)
+    {
+      for(int i = 0; tag && i < max_utag_stack; i++)
+        map->map[i] &= ~tag; //don't underflow; zero out bits
+    }
+  }
+  return map;
+}
+
+void merge_utag_map(utag_map map, utag_map *dst) //slow if many conflicts
+{
+  if(map.map[0]) stamp_utag_map(map.map[0], dst, 1);
+  int pow = 2;
+  for(int i = 1; i < max_utag_stack; i++)
+  {
+    if(map.map[i]) for(int j = 0; j < pow; j++) stamp_utag_map(map.map[i], dst, 1);
+    pow *= 2;
+  }
+}
+
+int utag_conflict(utag tag, utag dst)
+{
+  return tag & dst;
+}
+
+int utag_map_conflict(utag tag, utag_map map)
+{
+  for(int i = 0; i < max_utag_stack; i++)
+    if(tag & map.map[i]) return 1;
+  return 0;
+}
+
+int utag_map_overconflict(utag tag, utag_map map)
+{
+  for(int i = 1; i < max_utag_stack; i++)
+    if(tag & map.map[i]) return 1;
+  return 0;
+}
+
+int utag_map_overconflicted(utag_map map)
+{
+  for(int i = 1; i < max_utag_stack; i++)
+    if(map.map[i]) return 1;
+  return 0;
+}
+
+utag_map *zero_utag_map(utag_map *map)
+{
+  memset(map,0,sizeof(utag_map));
+  return map;
+}
+void absorb_utag(group *dst, group *src)
+{
+  dst->tag |= src->tag;
+  src->tag = 0;
 }
 
 unsigned int elevate_utags(group *g, group *parent, group *parent_option_child)
 {
   if(parent && parent->type == GROUP_TYPE_OPTION) parent_option_child = g;
-  else if(parent_option_child) merge_utags(parent_option_child,g);
+  else if(parent_option_child) absorb_utag(parent_option_child,g);
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
       g->child_utag |= (elevate_utags(&g->childs[i],g,parent_option_child) || g->child_utag);
   }
-  return g->utag | g->child_utag;
+  return g->tag | g->child_utag;
 }
 
 void preprocess_group(group *g)
@@ -1214,7 +1305,7 @@ void collapse_group(group *g, group *root, int handle_gamuts)
       {
         if(c->n == 1 && c->n_mods == 0)
         {
-          merge_utags(&c->childs[0],c); //childs[0] will become c
+          absorb_utag(&c->childs[0],c); //childs[0] will become c
           group *oc = c->childs;
           *c = c->childs[0];
           free(oc);
@@ -1240,8 +1331,8 @@ void collapse_group(group *g, group *root, int handle_gamuts)
       group *c = &g->childs[i];
       if(c->n_mods == 0 && c->type == g->type)
       {
-        if(g->type == GROUP_TYPE_OPTION && c->utag) continue;
-        merge_utags(g,c);
+        if(g->type == GROUP_TYPE_OPTION && c->tag) continue;
+        absorb_utag(g,c);
         g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
         c = &g->childs[i]; //need to re-assign c, as g has been realloced
         group *oc = c->childs;
@@ -1545,79 +1636,8 @@ int smodify_group(group *g, int inert, char *lockholder, char *buff, char **buff
   return inert;
 }
 
-void stamp_utag(unsigned int utag, char *utag_map, int dir)
-{
-  int i = 0;
-  unsigned int tag_bit;
-  while(utag)
-  {
-    tag_bit = (1 << i);
-    if(utag & tag_bit)
-    {
-      utag_map[i+1] += dir;
-      utag &= ~tag_bit;
-    }
-    i++;
-  }
-}
-
-int utag_conflict(unsigned int utag, char *utag_map)
-{
-  int i = 0;
-  unsigned int tag_bit;
-  while(utag)
-  {
-    tag_bit = (1 << i);
-    if(utag & tag_bit)
-    {
-      if(utag_map[i+1]) return 1;
-      utag &= ~tag_bit;
-    }
-    i++;
-  }
-  return 0;
-}
-
-int utag_overconflict(unsigned int utag, char *utag_map)
-{
-  int i = 0;
-  unsigned int tag_bit;
-  while(utag)
-  {
-    tag_bit = (1 << i);
-    if(utag & tag_bit)
-    {
-      if(utag_map[i+1] > 1) return 1;
-      utag &= ~tag_bit;
-    }
-    i++;
-  }
-  return 0;
-}
-
-int utag_map_overconflicted(char *utag_map)
-{
-  for(int i = 0; i < max_utag_count; i++)
-    if(utag_map[i] > 1) return 1;
-  return 0;
-}
-
-int advance_option_child(group *g, char *utag_map)
-{
-  stamp_utag(g->childs[g->i].utag,utag_map,-1); //untag self
-  g->i++;
-  while(
-    g->i < g->n && //room to advance
-    utag_conflict(g->childs[g->i].utag,utag_map) //mutex
-  ) g->i++;
-  if(g->i == g->n) g->i = 0;
-  stamp_utag(g->childs[g->i].utag,utag_map,1); //tag next (possibility to result in 2 utag if i == 0)
-  if(g->i != 0) return 1;
-  return 0;
-}
-
 //prints current state, and manages/advances to _next_ state
-int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **buff_p) //"inert = 1" is the cue to stop incrementing as the rest of the password is written
+int sprint_group(group *g, int inert, char *lockholder, char **buff_p) //"inert = 1" is the cue to stop incrementing as the rest of the password is written
 {
   char *buff = *buff_p;
   switch(g->type)
@@ -1626,50 +1646,59 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **b
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
         for(int i = 0; i < g->n; i++)
-          sprint_group(&g->childs[i], 1, lockholder, utag_map, buff_p); //dry run
+          sprint_group(&g->childs[i], 1, lockholder, buff_p); //dry run
         inert = smodify_group(g, inert, lockholder, buff, buff_p); //to let modifications get a chance to increment
         if(!inert) //still hot?
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[i], inert, lockholder, utag_map, &devnull); //redo dry run, updating state (but printing to garbage)
+            inert = sprint_group(&g->childs[i], inert, lockholder, &devnull); //redo dry run, updating state (but printing to garbage)
         }
       }
       else //inert OR no modifications means no dry run necessary
       {
         for(int i = 0; i < g->n; i++)
-          inert = sprint_group(&g->childs[i], inert, lockholder, utag_map, buff_p);
+          inert = sprint_group(&g->childs[i], inert, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
       }
       break;
     case GROUP_TYPE_OPTION:
-      //int skip = !inert && 
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
-        sprint_group(&g->childs[g->i], 1, lockholder, utag_map, buff_p);
+        sprint_group(&g->childs[g->i], 1, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
-          inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, &devnull);
-          if(!inert) inert = advance_option_child(g, utag_map);
+          inert = sprint_group(&g->childs[g->i], inert, lockholder, &devnull);
+          if(!inert)
+          {
+            g->i++;
+            if(g->i == g->n) g->i = 0;
+            else inert = 1;
+          }
         }
       }
       else
       {
-        inert = sprint_group(&g->childs[g->i], inert, lockholder, utag_map, buff_p);
+        inert = sprint_group(&g->childs[g->i], inert, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
-        if(!inert) inert = advance_option_child(g, utag_map);
+        if(!inert)
+        {
+          g->i++;
+          if(g->i == g->n) g->i = 0;
+          else inert = 1;
+        }
       }
       break;
     case GROUP_TYPE_PERMUTE:
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
         for(int i = 0; i < g->n; i++)
-          sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], 1, lockholder, utag_map, buff_p);
+          sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], 1, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, utag_map, &devnull);
+            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, &devnull);
           if(!inert)
           {
             g->i++;
@@ -1681,7 +1710,7 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **b
       else
       {
         for(int i = 0; i < g->n; i++)
-          inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, utag_map, buff_p);
+          inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
@@ -1702,33 +1731,190 @@ int sprint_group(group *g, int inert, char *lockholder, char *utag_map, char **b
   return inert;
 }
 
-void populate_utag_map(group *g, char *utag_map)
+utag_map *merge_group_utag_map(group *g, utag_map *map)
 {
-  stamp_utag(g->utag, utag_map, 1);
-  if(!g->child_utag) return;
-  if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_PERMUTE)
+  utag tag = g->tag;
+  switch(g->type)
   {
-    for(int i = 0; i < g->n; i++)
-      populate_utag_map(&g->childs[i],utag_map);
+    case GROUP_TYPE_SEQUENCE:
+    case GROUP_TYPE_PERMUTE:
+      for(int i = 0; i < g->n; i++)
+        merge_group_utag_map(&g->childs[i], map);
+      break;
+    case GROUP_TYPE_OPTION:
+    {
+      stamp_utag_map(g->childs[g->i].tag,map,1); //only need to stamp here, as the only things with utags should be children of options
+      merge_group_utag_map(&g->childs[g->i], map);
+    }
+      break;
+    case GROUP_TYPE_CHARS:
+    default: //appease compiler
+      break;
   }
-  if(g->type == GROUP_TYPE_OPTION)
-  {
-    populate_utag_map(&g->childs[0],utag_map);
-  }
+  return map;
 }
 
-void zero_progress_group(group *g, char *utag_map)
+int advance_group(group *g, utag parent_tag)
 {
-  if(g->utag) stamp_utag(g->utag,utag_map,-1);
+  int carry = 0;
+  utag_map child_map;
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+    {
+      int i = g->n-1;
+      int advanced = 0;
+      while(i >= 0)
+      {
+        int newly_advanced = 0;
+        if(carry || (i == 0 && !advanced))
+        {
+          advanced = 1;
+          newly_advanced = 1;
+          carry = advance_group(&g->childs[i], parent_tag);
+        }
+        if(!carry) merge_group_utag_map(&g->childs[i], zero_utag_map(&child_map));
+        while(!carry && (utag_map_overconflicted(child_map) || utag_map_conflict(parent_tag,child_map)))
+        {
+          advanced = 1;
+          newly_advanced = 1;
+          carry = advance_group(&g->childs[i], parent_tag);
+          if(!carry) merge_group_utag_map(&g->childs[i], zero_utag_map(&child_map));
+        }
+        if(newly_advanced)
+        {
+          for(int j = i-1; j >= 0; j--)
+            zero_progress_group(&g->childs[j]);
+        }
+        if(carry)
+        {
+          i++;
+          if(i == g->n) //tried to pop too far: impossible group
+          {
+            zero_progress_group(g);
+            return 1;
+          }
+          else
+          {
+            utag untag = merge_group_utag_map(&g->childs[i],zero_utag_map(&child_map))->map[0];
+            parent_tag = stamp_utag(untag,parent_tag,0);
+          }
+        }
+        else
+        {
+          parent_tag = stamp_utag(child_map.map[0], parent_tag, 1);
+          i--;
+        }
+      }
+    }
+      break;
+    case GROUP_TYPE_OPTION:
+    {
+      int advanced = 0;
+      carry = 0;
+      while(!advanced || carry)
+      {
+        while(carry || utag_conflict(g->childs[g->i].tag,parent_tag))
+        {
+          g->i++;
+          advanced = 1;
+          carry = 0;
+          if(g->i == g->n)
+          {
+            g->i = 0;
+            zero_progress_group(g);
+            return 1;
+          }
+        }
+        parent_tag = stamp_utag(g->childs[g->i].tag,parent_tag,1);
+        if(!advanced) carry = advance_group(&g->childs[g->i], parent_tag);
+        advanced = 1;
+        if(!carry) merge_group_utag_map(&g->childs[g->i], zero_utag_map(&child_map));
+        while(!carry && (utag_map_overconflicted(child_map) || utag_map_conflict(parent_tag,child_map)))
+        {
+          carry = advance_group(&g->childs[g->i], parent_tag);
+          if(!carry) merge_group_utag_map(&g->childs[g->i], zero_utag_map(&child_map));
+        }
+        if(carry) parent_tag = stamp_utag(g->childs[g->i].tag,parent_tag,0);
+      }
+    }
+      break;
+    case GROUP_TYPE_PERMUTE:
+    {
+      int i = g->n-1;
+      int advanced = 0;
+      while(i >= 0)
+      {
+        int pi = cache_permute_indices[g->n][g->i+1][i];
+        int newly_advanced = 0;
+        if(carry || (i == 0 && !advanced))
+        {
+          advanced = 1;
+          newly_advanced = 1;
+          carry = advance_group(&g->childs[pi], parent_tag);
+        }
+        if(!carry) merge_group_utag_map(&g->childs[pi], zero_utag_map(&child_map));
+        while(!carry && (utag_map_overconflicted(child_map) || utag_map_conflict(parent_tag,child_map)))
+        {
+          advanced = 1;
+          newly_advanced = 1;
+          carry = advance_group(&g->childs[pi], parent_tag);
+          if(!carry) merge_group_utag_map(&g->childs[pi], zero_utag_map(&child_map));
+        }
+        if(newly_advanced)
+        {
+          for(int j = i-1; j >= 0; j--)
+          {
+            int pj = cache_permute_indices[g->n][g->i+1][j];
+            zero_progress_group(&g->childs[pj]);
+          }
+        }
+        if(carry)
+        {
+          i++;
+          if(i == g->n+1) //tried to pop too far: impossible group
+          {
+            zero_progress_group(g);
+            return 1;
+          }
+          else
+          {
+            utag untag = merge_group_utag_map(&g->childs[pi],zero_utag_map(&child_map))->map[0];
+            parent_tag = stamp_utag(untag,parent_tag,0);
+          }
+        }
+        else
+        {
+          parent_tag = stamp_utag(child_map.map[0], parent_tag, 1);
+          i--;
+        }
+      }
+    }
+      break;
+    case GROUP_TYPE_CHARS:
+      carry = 1;
+      break;
+    default: //appease compiler
+      break;
+  }
+  zero_progress_modifications(g);
+  return carry;
+}
+
+void zero_progress_group(group *g)
+{
   if(g->type == GROUP_TYPE_OPTION)
-    zero_progress_group(&g->childs[g->i], utag_map);
+    zero_progress_group(&g->childs[g->i]);
   else if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
-      zero_progress_group(&g->childs[i], utag_map);
+      zero_progress_group(&g->childs[i]);
   }
   g->i = 0;
+}
 
+void zero_progress_modifications(group *g)
+{
   modification *m;
   for(int i = 0; i < g->n_mods; i++)
   {
@@ -1893,11 +2079,11 @@ group *unroll_group(group *g)
       group *ng = (group *)malloc(sizeof(group));
       zero_group(ng);
       ng->type = GROUP_TYPE_OPTION;
-      merge_utags(ng,g);
+      absorb_utag(ng,g);
       group *cg;
       while(!done)
       {
-        done = !sprint_group(g, 0, lockholder, utag_map, &passholder_p);
+        done = !sprint_group(g, 0, lockholder, &passholder_p);
         *passholder_p = '\0';
         ng->n++;
         if(ng->n == 1) ng->childs = (group *)malloc(sizeof(group));
@@ -1940,23 +2126,23 @@ void print_seed(group *g, int print_progress, int selected, int indent)
   switch(g->type)
   {
     case GROUP_TYPE_SEQUENCE:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("<"); if(g->utag) print_utag(g->utag); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("<"); if(g->tag) print_utag(g->tag); printf("\n");
       for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],print_progress,selected,indent+1);
       for(int i = 0; i < indent; i++) printf("  "); printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_OPTION:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag) { printf("<"); print_utag(g->utag); } printf("{"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag) { printf("<"); print_utag(g->tag); } printf("{"); printf("\n");
       for(int i = 0; i < g->n; i++) { print_seed(&g->childs[i],print_progress,print_progress && selected && i == g->i,indent+1); }
-      for(int i = 0; i < indent; i++) printf("  "); printf("}"); if(g->utag) printf(">"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); printf("}"); if(g->tag) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_PERMUTE:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag) { printf("<"); print_utag(g->utag); } printf("("); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag) { printf("<"); print_utag(g->tag); } printf("("); printf("\n");
       if(print_progress) { for(int i = 0; i < g->n; i++) print_seed(&g->childs[cache_permute_indices[g->n][g->i+1][i]],print_progress,selected,indent+1); }
       else               { for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],                                     print_progress,0,indent+1); }
-      for(int i = 0; i < indent; i++) printf("  "); printf(")"); if(g->utag) printf(">"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); printf(")"); if(g->tag) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_CHARS:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->utag) { printf("<"); print_utag(g->utag); } printf("\"%s\"",g->chars); if(g->utag) printf(">"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag) { printf("<"); print_utag(g->tag); } printf("\"%s\"",g->chars); if(g->tag) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     default: //appease compiler
       break;
