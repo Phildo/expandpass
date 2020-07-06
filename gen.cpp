@@ -179,7 +179,7 @@ void collapse_group(group *g, group *root, int handle_gamuts);
 void print_seed(group *g, int print_progress, int selected, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
-int sprint_group(group *g, int inert, char *lockholder, char **buff_p);
+int sprint_group(group *g, int inert, int *utag_dirty, char *lockholder, char **buff_p);
 utag_map *merge_group_children_utag_map(group *g, utag_map *map);
 int advance_group(group *g, utag parent_tag);
 void zero_progress_group(group *g);
@@ -484,17 +484,21 @@ int main(int argc, char **argv)
   int done = 0;
   long long int e = 0;
   utag_map map;
+  int utag_dirty = 1;
   while(!done)
   {
     int preskip = 0;
     //print_seed(g,1,1,0);
     if(g->child_tag)
     {
-      merge_group_children_utag_map(g,zero_utag_map(&map));
-      if(utag_map_overconflicted(map)) if(advance_group(g,0)) break; //advance_group returning 1 means done
-      done = !sprint_group(g, 0, lockholder, &passholder_p);
+      if(utag_dirty)
+      {
+        merge_group_children_utag_map(g,zero_utag_map(&map));
+        if(utag_map_overconflicted(map)) if(advance_group(g,0)) break; //advance_group returning 1 means done
+      }
+      done = !sprint_group(g, 0, &utag_dirty, lockholder, &passholder_p);
     }
-    else done = !sprint_group(g, 0, lockholder, &passholder_p);
+    else done = !sprint_group(g, 0, &utag_dirty, lockholder, &passholder_p);
     e++;
     *passholder_p = '\0';
     int plength = passholder_p-passholder;
@@ -1637,7 +1641,7 @@ int smodify_group(group *g, int inert, char *lockholder, char *buff, char **buff
 }
 
 //prints current state, and manages/advances to _next_ state
-int sprint_group(group *g, int inert, char *lockholder, char **buff_p) //"inert = 1" is the cue to stop incrementing as the rest of the password is written
+int sprint_group(group *g, int inert, int *utag_dirty, char *lockholder, char **buff_p) //"inert = 1" is the cue to stop incrementing as the rest of the password is written
 {
   char *buff = *buff_p;
   switch(g->type)
@@ -1647,18 +1651,18 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p) //"inert 
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
         for(int i = 0; i < g->n; i++)
-          sprint_group(&g->childs[i], 1, lockholder, buff_p); //dry run
+          sprint_group(&g->childs[i], 1, utag_dirty, lockholder, buff_p); //dry run
         inert = smodify_group(g, inert, lockholder, buff, buff_p); //to let modifications get a chance to increment
         if(!inert) //still hot?
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[i], inert, lockholder, &devnull); //redo dry run, updating state (but printing to garbage)
+            inert = sprint_group(&g->childs[i], inert, utag_dirty, lockholder, &devnull); //redo dry run, updating state (but printing to garbage)
         }
       }
       else //inert OR no modifications means no dry run necessary
       {
         for(int i = 0; i < g->n; i++)
-          inert = sprint_group(&g->childs[i], inert, lockholder, buff_p);
+          inert = sprint_group(&g->childs[i], inert, utag_dirty, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
       }
     }
@@ -1667,28 +1671,32 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p) //"inert 
     {
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
-        sprint_group(&g->childs[g->i], 1, lockholder, buff_p);
+        sprint_group(&g->childs[g->i], 1, utag_dirty, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
-          inert = sprint_group(&g->childs[g->i], inert, lockholder, &devnull);
+          inert = sprint_group(&g->childs[g->i], inert, utag_dirty, lockholder, &devnull);
           if(!inert)
           {
+            if(g->childs[g->i].tag) *utag_dirty = 1;
             g->i++;
             if(g->i == g->n) g->i = 0;
             else inert = 1;
+            if(g->childs[g->i].tag) *utag_dirty = 1;
           }
         }
       }
       else
       {
-        inert = sprint_group(&g->childs[g->i], inert, lockholder, buff_p);
+        inert = sprint_group(&g->childs[g->i], inert, utag_dirty, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
+          if(g->childs[g->i].tag) *utag_dirty = 1;
           g->i++;
           if(g->i == g->n) g->i = 0;
           else inert = 1;
+          if(g->childs[g->i].tag) *utag_dirty = 1;
         }
       }
     }
@@ -1698,12 +1706,12 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p) //"inert 
       if(!inert && g->n_mods) //this is incredibly inefficient
       {
         for(int i = 0; i < g->n; i++)
-          sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], 1, lockholder, buff_p);
+          sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], 1, utag_dirty, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, &devnull);
+            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, utag_dirty, lockholder, &devnull);
           if(!inert)
           {
             g->i++;
@@ -1715,7 +1723,7 @@ int sprint_group(group *g, int inert, char *lockholder, char **buff_p) //"inert 
       else
       {
         for(int i = 0; i < g->n; i++)
-          inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, lockholder, buff_p);
+          inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, utag_dirty, lockholder, buff_p);
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
@@ -2086,10 +2094,11 @@ group *unroll_group(group *g)
       zero_group(ng);
       ng->type = GROUP_TYPE_OPTION;
       absorb_utag(ng,g);
+      int utag_dirty = 0; //irrelevant
       group *cg;
       while(!done)
       {
-        done = !sprint_group(g, 0, lockholder, &passholder_p);
+        done = !sprint_group(g, 0, &utag_dirty, lockholder, &passholder_p);
         *passholder_p = '\0';
         ng->n++;
         if(ng->n == 1) ng->childs = (group *)malloc(sizeof(group));
