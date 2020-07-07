@@ -1886,13 +1886,14 @@ int advance_group(group *g, utag parent_tag)
         if(carry)
         {
           i++;
-          if(i == g->n+1) //tried to pop too far: impossible group
+          if(i == g->n) //tried to pop too far: impossible group
           {
             zero_progress_group(g);
             return 1;
           }
           else
           {
+            pi = cache_permute_indices[g->n][g->i+1][i];
             utag untag = merge_group_children_utag_map(&g->childs[pi],zero_utag_map(&child_map))->map[0];
             parent_tag = stamp_utag(untag,parent_tag,0);
           }

@@ -1,7 +1,7 @@
 EXE=expandpass
 SRC=gen.cpp
 NOWARN=-Wno-write-strings
-ARGS=-i tests/in/11
+ARGS=
 
 make: $(EXE)
 	
@@ -19,7 +19,8 @@ builddebug: $(EXE).dSYM
 	
 
 debug: $(EXE).dSYM
-	lldb -- ./$(EXE) $(ARGS)
+#	lldb -- ./$(EXE) $(ARGS)
+	gdb --args ./$(EXE) $(ARGS)
 
 $(EXE): $(SRC) seed.txt
 	gcc $(NOWARN) $(SRC) -o $(EXE)
