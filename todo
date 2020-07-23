@@ -1,6 +1,7 @@
 
 - problems:
 - - because permutation indexes are pre-cached (for speed+clarity during iteration), permutation groups > 9 become huge memory sinks. > 11 = likely crashes (memory runs out). <- WOULD LOVE HELP!
+- - permutations, where an option has potential to be an empty string, should not waste time testing "every possible position of that empty string"
 
 - features:
 - - should warn re: high permutation counts
