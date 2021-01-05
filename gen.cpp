@@ -1,15 +1,6 @@
-#ifdef _WIN32
-#define _CRT_SECURE_NO_WARNINGS
-extern "C" {
-#endif
-
-#include "stdio.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include "string.h"
-#ifndef _WIN32
-#include "unistd.h"
-#endif
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #ifdef _WIN32
 size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of this c11 api
@@ -2278,8 +2269,4 @@ void resume_group(group *g, FILE *fp)
     }
   }
 }
-
-#ifdef _WIN32
-} //extern "C"
-#endif
 
