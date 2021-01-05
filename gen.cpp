@@ -1,6 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#ifndef _WIN32
+#include <unistd.h> //for isatty()
+#endif //!_WIN32
 
 #ifdef _WIN32
 size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of this c11 api
