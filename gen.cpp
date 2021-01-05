@@ -38,7 +38,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
 #endif
 
 static const int version_maj = 0;
-static const int version_min = 15;
+static const int version_min = 16;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
