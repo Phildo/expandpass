@@ -58,6 +58,7 @@ const int max_read_line_len = 1024;
 const int max_utag_count = 16;
 const int max_utag_stack = 4;
 char *devnull;
+char *tdevnull;
 
 typedef unsigned int utag;
 typedef struct
@@ -1650,7 +1651,10 @@ int sprint_group(group *g, int inert, int *utag_dirty, char *lockholder, char **
         if(!inert) //still hot?
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[i], inert, utag_dirty, lockholder, &devnull); //redo dry run, updating state (but printing to garbage)
+          {
+            tdevnull = devnull;
+            inert = sprint_group(&g->childs[i], inert, utag_dirty, lockholder, &tdevnull); //redo dry run, updating state (but printing to garbage)
+          }
         }
       }
       else //inert OR no modifications means no dry run necessary
@@ -1669,7 +1673,8 @@ int sprint_group(group *g, int inert, int *utag_dirty, char *lockholder, char **
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
-          inert = sprint_group(&g->childs[g->i], inert, utag_dirty, lockholder, &devnull);
+          tdevnull = devnull;
+          inert = sprint_group(&g->childs[g->i], inert, utag_dirty, lockholder, &tdevnull);
           if(!inert)
           {
             if(g->childs[g->i].tag) *utag_dirty = 1;
@@ -1705,7 +1710,10 @@ int sprint_group(group *g, int inert, int *utag_dirty, char *lockholder, char **
         if(!inert)
         {
           for(int i = 0; i < g->n; i++)
-            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, utag_dirty, lockholder, &devnull);
+          {
+            tdevnull = devnull;
+            inert = sprint_group(&g->childs[cache_permute_indices[g->n][g->i+1][i]], inert, utag_dirty, lockholder, &tdevnull);
+          }
           if(!inert)
           {
             g->i++;
