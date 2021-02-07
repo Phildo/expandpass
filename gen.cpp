@@ -701,6 +701,8 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       return 0;
     }
 
+    while(*s == ' ' || *s == '\t') s++;
+
     char *c;
     switch(g->type)
     {
