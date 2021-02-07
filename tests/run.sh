@@ -10,6 +10,8 @@
 cd `dirname $0`
 if [ ! -f ../expandpass ]; then echo "executable expandpass not found (expected `pwd`/../expandpass)" 1>&2; exit 1; fi
 
+../expandpass --version
+
 #silly way to find out # tests
 max_tests=100
 n_tests=0
