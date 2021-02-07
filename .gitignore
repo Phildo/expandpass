@@ -5,6 +5,7 @@ tags
 expandpass
 expandpass.dSYM
 password.txt
+build
 *.exe
 *.obj
 
