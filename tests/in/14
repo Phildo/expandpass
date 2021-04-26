@@ -1,9 +1,9 @@
 #unique children percolate up
 {
 "A"
-<"B"{"C"<1"U">}>
+<"B"{"C"<U1"U">}>
 }
 {
 "D"
-<"E"{"F"<1"U">}>
+<"E"{"F"<U1"U">}>
 }

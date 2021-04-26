@@ -1,9 +1,9 @@
 #unique tag (different order)
 {
-<1"UniqueA">
+<U1"UniqueA">
 "CommonA"
 }
 {
 "CommonB"
-<1"UniqueB">
+<U1"UniqueB">
 }
