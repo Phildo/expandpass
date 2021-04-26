@@ -169,6 +169,7 @@ int parse_tag(FILE *fp, int *line_n, char *buff, char **b, tag *t, int u, parse_
 group *parse();
 unsigned long long int estimate_group(group *g);
 tag stamp_tag(tag t, tag dst, int inc);
+tag *clone_tag(tag src, tag *t);
 void stamp_tag_map(tag t, tag_map *map, int inc);
 tag collapse_tag_map(tag_map map);
 void merge_tag_map(tag_map map, tag_map *dst); //slow if many conflicts
@@ -181,7 +182,6 @@ tag_map *zero_tag_map(tag_map *map);
 void absorb_tags(group *dst, group *src);
 void elevate_tags(group *g, group *parent, group *parent_option_child);
 int gtag_required_option(group *g, tag parent_tag_g, int *ri);
-int lock_gtag_options(group *g, tag parent_tag_g);
 void preprocess_group(group *g);
 group *unroll_group(group *g);
 void collapse_group(group *g, group *root, int handle_gamuts);
@@ -189,6 +189,8 @@ void print_seed(group *g, int print_progress, int selected, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
 int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lockholder, char **buff_p);
+bool utag_coherent_with_children(group *g, tag *tag_u);
+void revoke_child_utags(group *g, tag *tag_u);
 void merge_group_children_tag_maps(group *g, tag_map *map_u, tag_map *map_g, tag_map *inv_map_g);
 int advance_group(group *g, tag current_tag_u, tag current_tag_g);
 void zero_progress_group(group *g);
@@ -493,6 +495,7 @@ int main(int argc, char **argv)
   int done = 0;
   long long int e = 0;
   tag_map map_u;
+  tag tag_u = 0;
   tag tag_g = 0;
   int tag_g_conflict = 0;
   int utag_dirty = g->child_tag_u;
@@ -503,10 +506,9 @@ int main(int argc, char **argv)
     //print_seed(g,1,1,0);
     if(utag_dirty)
     {
-      merge_group_children_utag_map(g,zero_utag_map(&map));
-      if(utag_map_overconflicted(map)) if(advance_group(g,0)) break; //advance_group returning 1 means done
+      if(!utag_coherent_with_children(g,clone_tag(0,&tag_u))) if(advance_group(g,0,0)) break; //advance_group returning 1 means done
     }
-    done = !sprint_group(g, 0, &utag_dirty, lockholder, &passholder_p);
+    done = !sprint_group(g, 0, &utag_dirty, &gtag_dirty, lockholder, &passholder_p);
 
     e++;
     *passholder_p = '\0';
@@ -727,8 +729,8 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         *b = s;
         if(g->type == GROUP_TYPE_SEQUENCE)
         {
-          if(!parse_utag(fp, line_n, buff, b, &g->tag_u, e)) return 0;
-          if(!parse_gtag(fp, line_n, buff, b, &g->tag_g, e)) return 0;
+          if(!parse_tag(fp, line_n, buff, b, &g->tag_u, 1, e)) return 0;
+          if(!parse_tag(fp, line_n, buff, b, &g->tag_g, 0, e)) return 0;
         }
         return parse_childs(fp, line_n, buff, b, g, e);
         break;
@@ -1139,6 +1141,12 @@ tag stamp_tag(tag t, tag dst, int inc)
 {
   if(inc) return dst |  t;
   else    return dst & ~t;
+}
+
+tag *clone_tag(tag src, tag *t)
+{
+  *t = src;
+  return t;
 }
 
 void stamp_tag_map(tag t, tag_map *map, int inc)
@@ -1819,19 +1827,20 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
   return inert;
 }
 
-bool utag_coherent_with_children(group *g, tag tag_u)
+bool utag_coherent_with_children(group *g, tag *tag_u)
 {
   switch(g->type)
   {
     case GROUP_TYPE_SEQUENCE:
     case GROUP_TYPE_PERMUTE:
       for(int i = 0; i < g->n; i++)
-        if(!utag_coherent_with_children(g,tag_u)) return false;
+        if(!utag_coherent_with_children(&g->childs[i],tag_u)) return false;
       break;
     case GROUP_TYPE_OPTION:
     {
-      if(tag_conflict(g->childs[g->i].tag_u,tag_u)) return false;
-      tag_u = stamp_tag(g->childs[g->i].tag_u,tag_u,1);
+      if(tag_conflict(g->childs[g->i].tag_u,*tag_u)) return false;
+      *tag_u = stamp_tag(g->childs[g->i].tag_u,*tag_u,1);
+      if(!utag_coherent_with_children(&g->childs[g->i],tag_u)) return false;
     }
       break;
     case GROUP_TYPE_CHARS:
@@ -1839,6 +1848,25 @@ bool utag_coherent_with_children(group *g, tag tag_u)
       break;
   }
   return true;
+}
+
+void revoke_child_utags(group *g, tag *tag_u)
+{
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+    case GROUP_TYPE_PERMUTE:
+      for(int i = 0; i < g->n; i++)
+        revoke_child_utags(&g->childs[i],tag_u);
+      break;
+    case GROUP_TYPE_OPTION:
+      *tag_u = stamp_tag(g->childs[g->i].tag_u,*tag_u,0);
+      revoke_child_utags(&g->childs[g->i],tag_u);
+      break;
+    case GROUP_TYPE_CHARS:
+    default: //appease compiler
+      break;
+  }
 }
 
 void merge_group_children_tag_maps(group *g, tag_map *map_u, tag_map *map_g, tag_map *inv_map_g)
@@ -1869,12 +1897,7 @@ void merge_group_children_tag_maps(group *g, tag_map *map_u, tag_map *map_g, tag
 int advance_group(group *g, tag current_tag_u, tag current_tag_g)
 {
   int carry = 0;
-  //use "maps" (not "tags") to allow for undoing
-  tag_map proposed_map_u;
-  tag_map proposed_map_g;
-  tag_map proposed_inv_map_g;
-  tag collapsed_proposed_map_g;
-  tag collapsed_proposed_inv_map_g;
+  tag proposed_tag_u;
   switch(g->type)
   {
     case GROUP_TYPE_SEQUENCE:
@@ -1890,28 +1913,11 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
           newly_advanced = 1;
           carry = advance_group(&g->childs[i], current_tag_u, current_tag_g);
         }
-        if(!carry)
-        {
-          merge_group_children_tag_maps(&g->childs[i], zero_tag_map(&proposed_map_u), zero_tag_map(&proposed_map_g), zero_tag_map(&proposed_inv_map_g));
-          collapsed_proposed_map_g     = collapse_tag_map(proposed_map_g);
-          collapsed_proposed_inv_map_g = collapse_tag_map(proposed_inv_map_g);
-        }
-        while(!carry &&
-          (
-            tag_map_overconflicted(proposed_map_u) || //children are independently utag invalid
-            tag_map_conflict(current_tag_u,proposed_map_u) || //children are invalid w/ current utag
-            ((current_tag_g | collapsed_proposed_map_g) & collapsed_proposed_inv_map_g) //children are gtag invalid (either independently or w/ current)
-          ))
+        while(!carry && !utag_coherent_with_children(&g->childs[i],clone_tag(current_tag_u,&proposed_tag_u))) //to get out of this loop, we're either carrying or succeeding in populating proposed_tag_u
         {
           advanced = 1;
           newly_advanced = 1;
           carry = advance_group(&g->childs[i], current_tag_u, current_tag_g); //assume success || carry
-          if(!carry)
-          {
-            merge_group_children_tag_maps(&g->childs[i], zero_tag_map(&proposed_map_u), zero_tag_map(&proposed_map_g), zero_tag_map(&proposed_inv_map_g));
-            collapsed_proposed_map_g     = collapse_tag_map(proposed_map_g);
-            collapsed_proposed_inv_map_g = collapse_tag_map(proposed_inv_map_g);
-          }
         }
         if(newly_advanced)
         {
@@ -1926,19 +1932,11 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
             zero_progress_group(g);
             return 1; //"carry"
           }
-          else
-          {
-            merge_group_children_tag_maps(&g->childs[i], zero_tag_map(&proposed_map_u), zero_tag_map(&proposed_map_g), zero_tag_map(&proposed_inv_map_g));
-            collapsed_proposed_map_g     = collapse_tag_map(proposed_map_g);
-            collapsed_proposed_inv_map_g = collapse_tag_map(proposed_inv_map_g);
-            current_tag_u = stamp_tag(proposed_map_u.map[0],current_tag_u,0); //going to advance this next child on the carry; remove its influence (proposed[0] is correct, because this is undoing an established child)
-            current_tag_g = stamp_tag(collapsed_proposed_map_g,current_tag_g,0);
-          }
+          else revoke_child_utags(&g->childs[i],&current_tag_u); //going to advance this next child on the carry; remove its influence
         }
         else
         {
-          current_tag_u = stamp_tag(proposed_map_u.map[0], current_tag_u, 1);
-          current_tag_g |= proposed_tag_g;
+          current_tag_u = proposed_tag_u;
           i--;
         }
       }
@@ -1950,7 +1948,7 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
       carry = 0;
       while(!advanced || carry)
       {
-        while(carry || utag_conflict(g->childs[g->i].tag_u,current_tag_u)) //if carry, then child newly already zero'd; if utag_conflict, then it must also already be zero'd because it would never have opportunity to get "half way" anywhere
+        while(carry || tag_conflict(g->childs[g->i].tag_u,current_tag_u)) //if carry, then child newly already zero'd; if utag_conflict, then it must also already be zero'd because it would never have opportunity to get "half way" anywhere
         {
           int i = 0;
           int forced = false;
@@ -1965,7 +1963,7 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
           g->i = i;
           advanced = 1;
 
-          if(lock_gtag_options(&g->childs[g->i],current_tag_g))
+          if(true) //lock_gtag_options(&g->childs[g->i],current_tag_g))
             carry = 0;
           else
           {
@@ -1975,15 +1973,13 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
           }
         }
         current_tag_u = stamp_tag(g->childs[g->i].tag_u,current_tag_u,1); //guaranteed no conflict
-        gtag old_current_tag_g = current_tag_g;
+        tag old_current_tag_g = current_tag_g;
         current_tag_g = old_current_tag_g | g->childs[g->i].tag_g;
         if(!advanced) carry = advance_group(&g->childs[g->i], current_tag_u, current_tag_g);
         advanced = 1;
-        if(!carry) merge_group_children_tag_maps(&g->childs[g->i], zero_tag_map(&proposed_map_u), &current_tag_g);
-        while(!carry && (tag_map_overconflicted(proposed_map_u) || tag_map_conflict(current_tag_u,proposed_map_u)))
+        while(!carry && !utag_coherent_with_children(&g->childs[g->i],clone_tag(current_tag_u,&proposed_tag_u))) //to get out of this loop, we're either carrying or succeeding in populating proposed_tag_u
         {
           carry = advance_group(&g->childs[g->i], current_tag_u, current_tag_g);
-          if(!carry) merge_group_children_tag_maps(&g->childs[g->i], zero_tag_map(&proposed_map_u), &current_tag_g);
         }
         if(carry)
         {
@@ -2007,13 +2003,11 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
           newly_advanced = 1;
           carry = advance_group(&g->childs[pi], current_tag_u, current_tag_g);
         }
-        if(!carry) merge_group_children_tag_maps(&g->childs[pi], zero_tag_map(&proposed_map_u), &current_tag_g);
-        while(!carry && (tag_map_overconflicted(proposed_map_u) || tag_map_conflict(current_tag_u,proposed_map_u)))
+        while(!carry && !utag_coherent_with_children(&g->childs[i],clone_tag(current_tag_u,&proposed_tag_u))) //to get out of this loop, we're either carrying or succeeding in populating proposed_tag_u
         {
           advanced = 1;
           newly_advanced = 1;
           carry = advance_group(&g->childs[pi], current_tag_u, current_tag_g);
-          if(!carry) merge_group_children_tag_maps(&g->childs[pi], zero_tag_map(&proposed_map_u), &current_tag_g);
         }
         if(newly_advanced)
         {
@@ -2034,13 +2028,12 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g)
           else
           {
             pi = cache_permute_indices[g->n][g->i+1][i];
-            merge_group_children_tag_maps(&g->childs[pi],zero_tag_map(&proposed_map_u),&current_tag_g);
-            current_tag_u = stamp_tag(proposed_map_u.map[0],current_tag_u,0);
+            revoke_child_utags(&g->childs[pi],&current_tag_u); //going to advance this next child on the carry; remove its influence
           }
         }
         else
         {
-          current_tag_u = stamp_tag(proposed_map_u.map[0], current_tag_u, 1);
+          current_tag_u = proposed_tag_u;
           i--;
         }
       }
