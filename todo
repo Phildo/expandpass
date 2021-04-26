@@ -15,6 +15,9 @@
 - - user-defined smart substitution gamuts
 - - current codebase is pretty loose with (SEED-OPTIMIZATION BASED) memory leaks (as in, rather than recursively delete redundant groups/modifications/etc..., it just leaves cleanup for OS). would be nice to formalize. (however- because it really only is in the seed optimization phase, which relies on very limited memory amounts for a non-recurring amount of time, it's actually not a huge problem)
 - - current codebase doesn't have ultra-strict error checking (for example- if you have a password > 500 chars, it might crash)
+- - "swap adjacent" modification
+- - "insert group" modification (at simplest, to allow for insertion of multichar strings; at most complex, to insert arbitrary strings with their own modifications)
+- - "gtags": if "utags" ensure uniqueness of tag, "gtags" should force all options of a given tag are chosen (will need to pass along 1. unchosen gtags, and 2. chosen gtags, and abort if conflict)
 
 - tests needed:
 - - more strange whitespace-y seeds
