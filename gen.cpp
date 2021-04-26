@@ -504,9 +504,11 @@ int main(int argc, char **argv)
   {
     int preskip = 0;
     //print_seed(g,1,1,0);
-    if(utag_dirty)
+    if(utag_dirty || gtag_dirty)
     {
       if(!tags_coherent_with_children(g,clone_tag(0,&tag_u),clone_tag(0,&tag_g),clone_tag(0,&inv_tag_g))) if(advance_group(g,0,0,0)) break; //advance_group returning 1 means done
+      utag_dirty = 0;
+      gtag_dirty = 0;
     }
     done = !sprint_group(g, 0, &utag_dirty, &gtag_dirty, lockholder, &passholder_p);
 
@@ -2006,9 +2008,6 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g, tag current_in
           advanced = 1;
           carry = 0;
         }
-        current_tag_u = proposed_tag_u;
-        current_tag_g = proposed_tag_g;
-        current_inv_tag_g = proposed_inv_tag_g;
 
         if(!advanced) carry = advance_group(&g->childs[g->i], current_tag_u, current_tag_g, current_inv_tag_g);
         advanced = 1;
