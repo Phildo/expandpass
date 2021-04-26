@@ -39,7 +39,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
 #endif
 
 static const int version_maj = 0;
-static const int version_min = 18;
+static const int version_min = 19;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -1998,7 +1998,7 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g, tag current_in
           int forced = 0;
           if(current_tag_g) forced = gtag_required_option(g,current_tag_g,current_inv_tag_g,&i);
           if(!forced) i = g->i+1;
-          if(i == -1 || i == g->i || i == g->n) //over committed || can't advance (already correctly locked) || can't advance further
+          if(i == -1 || i <= g->i || i == g->n) //over committed || can't advance (already correctly locked) || can't advance further
           {
             zero_progress_group(g);
             return 1;
