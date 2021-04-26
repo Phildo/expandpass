@@ -5,7 +5,7 @@
 
 - features:
 - - should warn re: high permutation counts
-- - enable "realtime permutation" (which eats cost of recursion, but allows for iterative permutation w/o eating up-front memory reqs)
+- - enable "realtime permutation" (which eats cost of inline recursion, but allows for iterative permutation w/o eating up-front memory reqs)
 - - or at the very least, estimates w/ recursion
 - - unicode
 - - validate smartly (know to skip whole groups of modifications/etc... if guaranteed to not succeed) [HARD]
@@ -17,7 +17,7 @@
 - - current codebase doesn't have ultra-strict error checking (for example- if you have a password > 500 chars, it might crash)
 - - "swap adjacent" modification
 - - "insert group" modification (at simplest, to allow for insertion of multichar strings; at most complex, to insert arbitrary strings with their own modifications)
-- - "gtags": if "utags" ensure uniqueness of tag, "gtags" should force all options of a given tag are chosen (will need to pass along 1. unchosen gtags, and 2. chosen gtags, and abort if conflict)
+- - estimates which take tags into account
 
 - tests needed:
 - - more strange whitespace-y seeds
@@ -30,4 +30,9 @@
 - - very complex seeds with --estimate verified against wc -l
 - - very complex seeds whose output is piped through grep searching for specific passwords that should be generated
 - - pausing/resuming
+- - more complex utags/gtags
+
+- documentation:
+- - documentation of seed file in --help or similar
+- - documentation of utags and gtags in readme, --help, etc...
 
