@@ -132,8 +132,12 @@ struct group
   int mod_i;
   tag tag_u;
   tag tag_g;
-  tag child_tag_u; //only used in preprocessing!
-  tag child_tag_g; //only used in preprocessing!
+  tag child_tag_u;
+  tag child_tag_g;
+  tag zero_sum_tag_u;
+  tag zero_sum_tag_g;
+  tag sum_tag_u;
+  tag sum_tag_g;
 };
 void zero_group(group *g)
 {
@@ -149,6 +153,10 @@ void zero_group(group *g)
   g->tag_g = 0;
   g->child_tag_u = 0;
   g->child_tag_g = 0;
+  g->zero_sum_tag_u = 0;
+  g->zero_sum_tag_g = 0;
+  g->sum_tag_u = 0;
+  g->sum_tag_g = 0;
 }
 
 struct parse_error
@@ -189,6 +197,7 @@ void print_seed(group *g, int print_progress, int selected, int indent);
 float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
 int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lockholder, char **buff_p);
+int tags_coherent_with_selected_option(group *g, tag tag_u, tag tag_g, tag inv_tag_g);
 int tags_coherent_with_children(group *g, tag *tag_u, tag *tag_g, tag *inv_tag_g);
 void revoke_child_utags(group *g, tag *tag_u);
 void aggregate_child_gtags(group *g, tag *tag_g, tag *inv_tag_g);
@@ -498,8 +507,8 @@ int main(int argc, char **argv)
   tag tag_u = 0;
   tag tag_g = 0;
   tag inv_tag_g = 0;
-  int utag_dirty = g->child_tag_u;
-  int gtag_dirty = g->child_tag_g;
+  int utag_dirty = g->zero_sum_tag_u;
+  int gtag_dirty = g->zero_sum_tag_g;
   while(!done)
   {
     int preskip = 0;
@@ -1252,15 +1261,26 @@ void elevate_tags(group *g, group *parent, group *parent_option_child)
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
     for(int i = 0; i < g->n; i++) elevate_tags(&g->childs[i],g,parent_option_child);
 
+  g->sum_tag_u = g->tag_u | g->child_tag_u;
+  g->sum_tag_g = g->tag_g | g->child_tag_g;
+  g->zero_sum_tag_u |= g->tag_u;
+  g->zero_sum_tag_g |= g->tag_g;
+
   if(parent)
   {
     parent->child_tag_u |= (g->tag_u | g->child_tag_u);
     parent->child_tag_g |= (g->tag_g | g->child_tag_g);
+    if(parent->type != GROUP_TYPE_OPTION || g == &parent->childs[0])
+    {
+      parent->zero_sum_tag_u |= g->zero_sum_tag_u;
+      parent->zero_sum_tag_g |= g->zero_sum_tag_g;
+    }
   }
 }
 
 int gtag_required_option(group *g, tag tag_g, tag inv_tag_g, int *ri)
 {
+  if(!tag_g && !inv_tag_g) return -1;
   int forced_i = -1;
   for(int i = 0; i < g->n; i++)
   {
@@ -1756,13 +1776,16 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
           inert = sprint_group(&g->childs[g->i], inert, utag_dirty, gtag_dirty, lockholder, &tdevnull);
           if(!inert)
           {
-            if(g->childs[g->i].tag_u) *utag_dirty = 1;
-            if(g->childs[g->i].tag_g) *gtag_dirty = 1;
+            //if(g->childs[g->i].sum_tag_u) *utag_dirty = 1; //"leaving a utag" should never cause an issue
+            if(g->childs[g->i].sum_tag_g) *gtag_dirty = 1; //more conservative than "necessary" ("should" check against _current state's_ aggregate tag_u; not sum)
             g->i++;
             if(g->i == g->n) g->i = 0;
-            else inert = 1;
-            if(g->childs[g->i].tag_u) *utag_dirty = 1;
-            if(g->childs[g->i].tag_g) *gtag_dirty = 1;
+            else
+            {
+              inert = 1;
+              if(g->childs[g->i].zero_sum_tag_u) *utag_dirty = 1;
+              if(g->childs[g->i].sum_tag_g) *gtag_dirty = 1; //more conservative than "necessary" ("should" check if advancing _changed_ the _current state_)
+            }
           }
         }
       }
@@ -1772,13 +1795,16 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
         inert = smodify_group(g, inert, lockholder, buff, buff_p);
         if(!inert)
         {
-          if(g->childs[g->i].tag_u) *utag_dirty = 1;
-          if(g->childs[g->i].tag_g) *gtag_dirty = 1;
+          //if(g->childs[g->i].sum_tag_u) *utag_dirty = 1; //"leaving a utag" should never cause an issue
+          if(g->childs[g->i].sum_tag_g) *gtag_dirty = 1;  //more conservative than "necessary" ("should" check against _current state's_ aggregate tag_u; not sum)
           g->i++;
           if(g->i == g->n) g->i = 0;
-          else inert = 1;
-          if(g->childs[g->i].tag_u) *utag_dirty = 1;
-          if(g->childs[g->i].tag_g) *gtag_dirty = 1;
+          else
+          {
+            inert = 1;
+            if(g->childs[g->i].zero_sum_tag_u) *utag_dirty = 1;
+            if(g->childs[g->i].sum_tag_g) *gtag_dirty = 1; //more conservative than "necessary" ("should" check if advancing _changed_ the _current state_)
+          }
         }
       }
     }
@@ -1828,6 +1854,15 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
       break;
   }
   return inert;
+}
+
+int tags_coherent_with_selected_option(group *g, tag tag_u, tag tag_g, tag inv_tag_g)
+{
+  if(tag_conflict(g->childs[g->i].tag_u,tag_u)) return 0;
+  if(tag_conflict(g->childs[g->i].tag_g,inv_tag_g)) return 0;
+  for(int i = 0; i < g->n; i++)
+    if(i != g->i) if(tag_conflict(g->childs[g->i].tag_g,tag_g)) return 0;
+  return 1;
 }
 
 int tags_coherent_with_children(group *g, tag *tag_u, tag *tag_g, tag *inv_tag_g)
@@ -1992,7 +2027,7 @@ int advance_group(group *g, tag current_tag_u, tag current_tag_g, tag current_in
       carry = 0;
       while(!advanced || carry)
       {
-        while(carry || !tags_coherent_with_children(g,clone_tag(current_tag_u,&proposed_tag_u),clone_tag(current_tag_g,&proposed_tag_g),clone_tag(current_inv_tag_g,&proposed_inv_tag_g))) //to get out of this loop, we've succeeded in populating proposed_*
+        while(carry || !tags_coherent_with_selected_option(g, current_tag_u, current_tag_g, current_inv_tag_g))
         {
           int i = 0;
           int forced = 0;
@@ -2337,7 +2372,7 @@ void print_seed(group *g, int print_progress, int selected, int indent)
       for(int i = 0; i < indent; i++) printf("  "); printf(")"); if(g->tag_u || g->tag_g) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     case GROUP_TYPE_CHARS:
-      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag_u || g->tag_g) { printf("<"); if(g->tag_u) print_tag(g->tag_u,1); if(g->tag_g) print_tag(g->tag_g,0); } printf("\"%s\"",g->chars); if(g->tag_u || g->tag_g) printf(">"); if(selected) printf("*"); printf("\n");
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag_u || g->tag_g) { printf("<"); if(g->tag_u) print_tag(g->tag_u,1); if(g->tag_g) print_tag(g->tag_g,0); } if(g->n) printf("\"%s\"",g->chars); else printf("-"); if(g->tag_u || g->tag_g) printf(">"); if(selected) printf("*"); printf("\n");
       break;
     default: //appease compiler
       break;
