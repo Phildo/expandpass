@@ -134,8 +134,8 @@ struct group
   tag tag_g;
   tag child_tag_u;
   tag child_tag_g;
-  tag zero_sum_tag_u;
-  tag zero_sum_tag_g;
+  tag zerod_sum_tag_u;
+  tag zerod_sum_tag_g;
   tag sum_tag_u;
   tag sum_tag_g;
 };
@@ -153,8 +153,8 @@ void zero_group(group *g)
   g->tag_g = 0;
   g->child_tag_u = 0;
   g->child_tag_g = 0;
-  g->zero_sum_tag_u = 0;
-  g->zero_sum_tag_g = 0;
+  g->zerod_sum_tag_u = 0;
+  g->zerod_sum_tag_g = 0;
   g->sum_tag_u = 0;
   g->sum_tag_g = 0;
 }
@@ -443,8 +443,8 @@ int main(int argc, char **argv)
 
   group *g = parse();
 
-  elevate_tags(g,0,0);
   collapse_group(g,g,0);
+  elevate_tags(g,0,0);
   preprocess_group(g);
 
   if(unroll)
@@ -507,8 +507,8 @@ int main(int argc, char **argv)
   tag tag_u = 0;
   tag tag_g = 0;
   tag inv_tag_g = 0;
-  int utag_dirty = g->zero_sum_tag_u;
-  int gtag_dirty = g->zero_sum_tag_g;
+  int utag_dirty = g->zerod_sum_tag_u;
+  int gtag_dirty = g->zerod_sum_tag_g;
   while(!done)
   {
     int preskip = 0;
@@ -1263,8 +1263,8 @@ void elevate_tags(group *g, group *parent, group *parent_option_child)
 
   g->sum_tag_u = g->tag_u | g->child_tag_u;
   g->sum_tag_g = g->tag_g | g->child_tag_g;
-  g->zero_sum_tag_u |= g->tag_u;
-  g->zero_sum_tag_g |= g->tag_g;
+  g->zerod_sum_tag_u |= g->tag_u;
+  g->zerod_sum_tag_g |= g->tag_g;
 
   if(parent)
   {
@@ -1272,8 +1272,8 @@ void elevate_tags(group *g, group *parent, group *parent_option_child)
     parent->child_tag_g |= (g->tag_g | g->child_tag_g);
     if(parent->type != GROUP_TYPE_OPTION || g == &parent->childs[0])
     {
-      parent->zero_sum_tag_u |= g->zero_sum_tag_u;
-      parent->zero_sum_tag_g |= g->zero_sum_tag_g;
+      parent->zerod_sum_tag_u |= g->zerod_sum_tag_u;
+      parent->zerod_sum_tag_g |= g->zerod_sum_tag_g;
     }
   }
 }
@@ -1393,7 +1393,7 @@ void collapse_group(group *g, group *root, int handle_gamuts)
     free(g->mods);
   }
 
-  //collapse single-or-less-child, no modification groups
+  //collapse single-or-fewer-child, no modification groups
   if(g->type == GROUP_TYPE_SEQUENCE || g->type == GROUP_TYPE_OPTION || g->type == GROUP_TYPE_PERMUTE)
   {
     for(int i = 0; i < g->n; i++)
@@ -1783,7 +1783,7 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
             else
             {
               inert = 1;
-              if(g->childs[g->i].zero_sum_tag_u) *utag_dirty = 1;
+              if(g->childs[g->i].zerod_sum_tag_u) *utag_dirty = 1;
               if(g->childs[g->i].sum_tag_g) *gtag_dirty = 1; //more conservative than "necessary" ("should" check if advancing _changed_ the _current state_)
             }
           }
@@ -1802,7 +1802,7 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
           else
           {
             inert = 1;
-            if(g->childs[g->i].zero_sum_tag_u) *utag_dirty = 1;
+            if(g->childs[g->i].zerod_sum_tag_u) *utag_dirty = 1;
             if(g->childs[g->i].sum_tag_g) *gtag_dirty = 1; //more conservative than "necessary" ("should" check if advancing _changed_ the _current state_)
           }
         }
