@@ -880,7 +880,7 @@ void print_tag(tag t, int u)
   int first = 1;
   for(int i = 0; i < max_tag_count; i++)
   {
-    if(t &= (1 << i))
+    if(t & (1 << i))
     {
       if(!first)printf(",");first = 0;
       print_number(i+1);
@@ -1837,7 +1837,7 @@ int tags_coherent_with_children(group *g, tag *tag_u, tag *tag_g, tag *inv_tag_g
     case GROUP_TYPE_SEQUENCE:
     case GROUP_TYPE_PERMUTE:
       for(int i = 0; i < g->n; i++)
-        if(!tags_coherent_with_children(&g->childs[i],tag_u, tag_g, inv_tag_g)) return 0;
+        if(!tags_coherent_with_children(&g->childs[i], tag_u, tag_g, inv_tag_g)) return 0;
       break;
     case GROUP_TYPE_OPTION:
     {
@@ -1847,7 +1847,7 @@ int tags_coherent_with_children(group *g, tag *tag_u, tag *tag_g, tag *inv_tag_g
       for(int i = 0; i < g->n; i++)
         if(i != g->i) *inv_tag_g = stamp_tag(g->childs[i].tag_g,*inv_tag_g,1);
       if(tag_conflict(*tag_g,*inv_tag_g)) return 0;
-      if(!tags_coherent_with_children(&g->childs[g->i],tag_u,tag_g,inv_tag_g)) return 0;
+      if(!tags_coherent_with_children(&g->childs[g->i], tag_u, tag_g, inv_tag_g)) return 0;
     }
       break;
     case GROUP_TYPE_CHARS:
@@ -1886,9 +1886,9 @@ void aggregate_child_gtags(group *g, tag *tag_g, tag *inv_tag_g)
         aggregate_child_gtags(&g->childs[i],tag_g,inv_tag_g);
       break;
     case GROUP_TYPE_OPTION:
-      *tag_g = stamp_tag(g->childs[g->i].tag_g,*tag_g,0);
+      *tag_g = stamp_tag(g->childs[g->i].tag_g,*tag_g,1);
       for(int i = 0; i < g->n; i++)
-        if(i != g->i) *inv_tag_g = stamp_tag(g->childs[i].tag_g,*inv_tag_g,0);
+        if(i != g->i) *inv_tag_g = stamp_tag(g->childs[i].tag_g,*inv_tag_g,1);
       aggregate_child_gtags(&g->childs[g->i],tag_g,inv_tag_g);
       break;
     case GROUP_TYPE_CHARS:
