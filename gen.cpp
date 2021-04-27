@@ -39,7 +39,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
 #endif
 
 static const int version_maj = 0;
-static const int version_min = 20;
+static const int version_min = 21;
 
 static const int ERROR_NULL                      = 0;
 static const int ERROR_EOF                       = 1;
@@ -1861,7 +1861,7 @@ int tags_coherent_with_selected_option(group *g, tag tag_u, tag tag_g, tag inv_t
   if(tag_conflict(g->childs[g->i].tag_u,tag_u)) return 0;
   if(tag_conflict(g->childs[g->i].tag_g,inv_tag_g)) return 0;
   for(int i = 0; i < g->n; i++)
-    if(i != g->i) if(tag_conflict(g->childs[g->i].tag_g,tag_g)) return 0;
+    if(i != g->i) if(tag_conflict(g->childs[i].tag_g,tag_g)) return 0;
   return 1;
 }
 
