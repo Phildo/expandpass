@@ -171,8 +171,8 @@ char smart_sub(int i, char key);
 void basic_smart_substitute(int i, int sub_i, char *s);
 int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification *m, parse_error *e);
 int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
-int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, parse_error *e);
-int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e);
+int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, int depth, parse_error *e);
+int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int depth, parse_error *e);
 int parse_tag(FILE *fp, int *line_n, char *buff, char **b, tag *t, int u, parse_error *e);
 group *parse();
 unsigned long long int estimate_group(group *g);
@@ -663,7 +663,7 @@ void basic_smart_substitute(int i, int sub_i, char *s)
   s[i] = smart_sub(sub_i, s[i]);
 }
 
-int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, parse_error *e)
+int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *prev_g, int depth, parse_error *e)
 {
   int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
   size_t line_buff_len = max_read_line_len;
@@ -743,7 +743,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
           if(!parse_tag(fp, line_n, buff, b, &g->tag_u, 1, e)) return 0;
           if(!parse_tag(fp, line_n, buff, b, &g->tag_g, 0, e)) return 0;
         }
-        return parse_childs(fp, line_n, buff, b, g, e);
+        return parse_childs(fp, line_n, buff, b, g, depth+1, e);
         break;
       case GROUP_TYPE_CHARS:
         c = s;
@@ -1057,7 +1057,7 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
   return 1;
 }
 
-int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *e)
+int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int depth, parse_error *e)
 {
   char *s;
   int valid_kid = 1;
@@ -1066,7 +1066,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
   while(valid_kid)
   {
     zero_group(c);
-    valid_kid = parse_child(fp, line_n, buff, b, c, prev_c, e);
+    valid_kid = parse_child(fp, line_n, buff, b, c, prev_c, depth+1, e);
 
     if(valid_kid)
     {
@@ -1093,7 +1093,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_er
   }
   free(c);
 
-  if(e->error == ERROR_EOF)          return 1; //close everything
+  if(e->error == ERROR_EOF)          return (depth != 0); //close everything
   if(e->error != ERROR_INVALID_LINE) return 0; //let "invalid line" attempt parse as "end line"
   if(e->force)                       return 0; //if error force, don't allow passthrough ("unexpected parse" should only bubble up one level)
 
@@ -1494,7 +1494,7 @@ group *parse()
   g->type = GROUP_TYPE_SEQUENCE;
   char *b = buff;
   *b = '\0';
-  if(!parse_childs(fp, &line_n, buff, &b, g, &e))
+  if(!parse_childs(fp, &line_n, buff, &b, g, 0, &e))
   {
     fprintf(stderr, "%s", e.txt); exit(1);
   }
