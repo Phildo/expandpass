@@ -1105,6 +1105,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int dept
         case GROUP_TYPE_SEQUENCE: sprintf(e->txt,"ERROR: EOF unclosed sequence\nline %d\n",*line_n); break;
         case GROUP_TYPE_OPTION:   sprintf(e->txt,"ERROR: EOF unclosed option\nline %d\n",*line_n); break;
         case GROUP_TYPE_PERMUTE:  sprintf(e->txt,"ERROR: EOF unclosed permute\nline %d\n",*line_n); break;
+        default: break; //appease compiler
       }
       return 0;
     }
