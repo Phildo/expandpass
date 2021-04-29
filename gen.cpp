@@ -39,20 +39,21 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
 #endif
 
 static const int version_maj = 0;
-static const int version_min = 21;
+static const int version_min = 22;
 
-static const int ERROR_NULL                      = 0;
-static const int ERROR_EOF                       = 1;
-static const int ERROR_INVALID_LINE              = 2;
-static const int ERROR_INVALID_STRING            = 3;
-static const int ERROR_INVALID_MODIFICATION      = 4;
-static const int ERROR_UNTERMINATED_STRING       = 5;
-static const int ERROR_UNPARENTED_MODIFICATION   = 6;
-static const int ERROR_INVALID_NULL_MODIFICATION = 7;
-static const int ERROR_MODIFICATION_EMPTY_GAMUT  = 8;
-static const int ERROR_NULL_CHILD                = 9;
-static const int ERROR_TAG_RANGE                = 10;
-static const int ERROR_TAG_SPECIFY              = 11;
+static const int ERROR_NULL                      =  0;
+static const int ERROR_EOF                       =  1;
+static const int ERROR_BADEOF                    =  2;
+static const int ERROR_INVALID_LINE              =  3;
+static const int ERROR_INVALID_STRING            =  4;
+static const int ERROR_INVALID_MODIFICATION      =  5;
+static const int ERROR_UNTERMINATED_STRING       =  6;
+static const int ERROR_UNPARENTED_MODIFICATION   =  7;
+static const int ERROR_INVALID_NULL_MODIFICATION =  8;
+static const int ERROR_MODIFICATION_EMPTY_GAMUT  =  9;
+static const int ERROR_NULL_CHILD                = 10;
+static const int ERROR_TAG_RANGE                 = 11;
+static const int ERROR_TAG_SPECIFY               = 12;
 
 int buff_len = 1024*1024; //1MB
 const int max_pass_len = 300;
@@ -815,8 +816,8 @@ int parse_tag(FILE *fp, int *line_n, char *buff, char **b, tag *t, int u, parse_
       if(n_chars <= 0)
       {
         *buff = '\0';
-        e->error = ERROR_EOF;
-        sprintf(e->txt,"ERROR: EOF\nline %d\n",*line_n);
+        e->error = ERROR_BADEOF;
+        sprintf(e->txt,"ERROR: EOF parsing tag\nline %d\n",*line_n);
         return 0;
       }
       s = buff;
@@ -912,8 +913,8 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
       if(n_chars <= 0)
       {
         *buff = '\0';
-        e->error = ERROR_EOF;
-        sprintf(e->txt,"ERROR: EOF\nline %d\n",*line_n);
+        e->error = ERROR_BADEOF;
+        sprintf(e->txt,"ERROR: EOF parsing modification\nline %d\n",*line_n);
         return 0;
       }
       s = buff;
@@ -1038,7 +1039,7 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
   }
   free(m);
 
-  if(e->error == ERROR_EOF)                  return 1; //close everything
+  if(e->error == ERROR_BADEOF)               return 0; //close everything
   if(e->error != ERROR_INVALID_MODIFICATION) return 0; //let "invalid modification" attempt parse as "end modification"
   if(e->force)                               return 0; //if error force, don't allow passthrough ("unexpected parse" should only bubble up one level)
 
@@ -1093,7 +1094,21 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int dept
   }
   free(c);
 
-  if(e->error == ERROR_EOF)          return (depth != 0); //close everything
+  if(e->error == ERROR_EOF)
+  {
+    if(depth == 0) return 1; //close everything
+    else
+    {
+      e->error = ERROR_BADEOF; //upgrade error
+      switch(g->type)
+      {
+        case GROUP_TYPE_SEQUENCE: sprintf(e->txt,"ERROR: EOF unclosed sequence\nline %d\n",*line_n); break;
+        case GROUP_TYPE_OPTION:   sprintf(e->txt,"ERROR: EOF unclosed option\nline %d\n",*line_n); break;
+        case GROUP_TYPE_PERMUTE:  sprintf(e->txt,"ERROR: EOF unclosed permute\nline %d\n",*line_n); break;
+      }
+      return 0;
+    }
+  }
   if(e->error != ERROR_INVALID_LINE) return 0; //let "invalid line" attempt parse as "end line"
   if(e->force)                       return 0; //if error force, don't allow passthrough ("unexpected parse" should only bubble up one level)
 
