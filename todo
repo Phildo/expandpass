@@ -18,6 +18,16 @@
 - - "swap adjacent" modification
 - - "insert group" modification (at simplest, to allow for insertion of multichar strings; at most complex, to insert arbitrary strings with their own modifications)
 - - estimates which take tags into account
+- - hashcat integration:
+- - - cleanup garbage rather than quitting and letting OS do it
+- - - mark features as "unpredictable", and warn that predictions are perfect/off depending on presence in seed
+- - - serialize to/from _single integer_ in case of perfect predictability
+- - - wrap direct command line use to use API:
+- - - sc_expandpass_init: initialize from struct, including from state variable (int) (error in case of seed using unpredictable features)
+- - - sc_expandpass_keyspace: return --estimate if predictable, -1 if not
+- - - sc_expandpass_seek: deserialize from int (isn't this already done in init?)
+- - - sc_expandpass_next: print next
+- - - sc_expandpass_shutdown: cleanup
 
 - tests needed:
 - - more strange whitespace-y seeds
