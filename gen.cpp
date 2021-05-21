@@ -39,7 +39,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
 #endif
 
 static const int version_maj = 0;
-static const int version_min = 22;
+static const int version_min = 23;
 
 static const int ERROR_NULL                      =  0;
 static const int ERROR_EOF                       =  1;
@@ -729,7 +729,10 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       return 0;
     }
 
-    while(*s == ' ' || *s == '\t') s++;
+    if(g->type != GROUP_TYPE_CHARS)
+    {
+      while(*s == ' ' || *s == '\t') s++;
+    }
 
     char *c;
     switch(g->type)
