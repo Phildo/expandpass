@@ -13,7 +13,7 @@ const int max_read_line_len = 1024;
 const int max_tag_count = 16;
 const int max_tag_stack = 4;
 
-#define BOGUS_SAFETY //"safe" functions just quit on anything funky (allows compilation on VS without complaint)
+//#define BOGUS_SAFETY //"safe" functions just quit on anything funky (allows compilation on VS without complaint)
 #ifdef BOGUS_SAFETY
 void *safe_malloc(size_t size)
 {
