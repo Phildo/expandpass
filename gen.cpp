@@ -2,14 +2,102 @@
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
+#include <cstdarg>
 #ifndef _WIN32
 #include <unistd.h> //for isatty()
 #endif //!_WIN32
 
+const int max_sprintf_len = 1024;
+const int max_pass_len = 300;
+const int max_read_line_len = 1024;
+const int max_tag_count = 16;
+const int max_tag_stack = 4;
+
+#define BOGUS_SAFETY //"safe" functions just quit on anything funky (allows compilation on VS without complaint)
+#ifdef BOGUS_SAFETY
+void *safe_malloc(size_t size)
+{
+  void *ptr = malloc(size);
+  if(!ptr)
+  {
+    fprintf(stderr,"malloc failed");
+    exit(1);
+  }
+  return ptr;
+}
+void *safe_realloc(void *ptr, size_t size)
+{
+  void *nptr = realloc(ptr,size);
+  if(!nptr)
+  {
+    fprintf(stderr,"realloc failed");
+    exit(1);
+  }
+  return nptr;
+}
+char *safe_strcpy(char *dst, char *src)
+{
+  errno_t ret = strcpy_s(dst,max_read_line_len,src); //this is extra bogus; does NOT protect against overflow!
+  if(ret)
+  {
+    fprintf(stderr,"strcpy failed");
+    exit(1);
+  }
+  return dst;
+}
+int safe_sprintf(char *buff, const char *const fmt, ...)
+{
+  va_list arg;
+  va_start(arg,fmt);
+  char const *vfmt = va_arg(arg, const char *const);
+  int ret = vsprintf_s(buff, max_sprintf_len, fmt, arg);
+  if(ret < 0)
+  {
+    fprintf(stderr,"sprintf failed");
+    exit(1);
+  }
+  va_end(arg);
+  return ret;
+}
+FILE *safe_fopen(const char *filename, const char *mode)
+{
+  FILE *out;
+  errno_t ret = fopen_s(&out, filename, mode);
+  if(ret != 0)
+  {
+    return 0;
+    //fprintf(stderr,"fopen failed");
+    //exit(1);
+  }
+  return out;
+}
+int safe_fscanf(FILE *const stream, const char *const fmt, ...)
+{
+  va_list arg;
+  va_start(arg,fmt);
+  char const *vfmt = va_arg(arg, const char *const);
+  int ret = fscanf_s(stream,fmt,arg);
+  if(ret == 0 || ret == EOF)
+  {
+    fprintf(stderr,"fscanf failed");
+    exit(1);
+  }
+  va_end(arg);
+  return ret;
+}
+#else
+#define safe_malloc malloc
+#define safe_realloc realloc
+#define safe_strcpy strcpy
+#define safe_sprintf sprintf
+#define safe_fopen fopen
+#define safe_fscanf fscanf
+#endif
+
 #ifdef _WIN32
 size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of this c11 api
 {
-  const int bsize = 1024;
+  const int bsize = max_read_line_len;
   char buffer[bsize];
   if(fgets(buffer,*n,stream) == 0) return 0;
   for(int i = 0; i < bsize; i++)
@@ -20,7 +108,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
       int len = i+1;
       char hold = buffer[len];
       buffer[len] = '\0';
-      strcpy(*lineptr,buffer);
+      safe_strcpy(*lineptr,buffer);
       buffer[len] = hold;
       for(i++; i < bsize; i++)
       {
@@ -56,10 +144,6 @@ static const int ERROR_TAG_RANGE                 = 11;
 static const int ERROR_TAG_SPECIFY               = 12;
 
 int buff_len = 1024*1024; //1MB
-const int max_pass_len = 300;
-const int max_read_line_len = 1024;
-const int max_tag_count = 16;
-const int max_tag_stack = 4;
 char *devnull;
 char *tdevnull;
 
@@ -228,7 +312,7 @@ int seed_specified = 0;
 char *password_file = 0;
 const char *resume_file = "seed.progress";
 const char *checkpoint_file = "seed.progress";
-char checkpoint_file_bak[512];
+char checkpoint_file_bak[max_sprintf_len];
 int estimate = 0;
 int estimate_rate = 600000;
 int resume = 0;
@@ -428,18 +512,18 @@ int main(int argc, char **argv)
     }
     i++;
   }
-  sprintf(checkpoint_file_bak,"%s.bak",checkpoint_file);
+  safe_sprintf(checkpoint_file_bak,"%s.bak",checkpoint_file);
 
   n_cached_permute_indices = 0;
 
-  buff = (char *)malloc(sizeof(char)*buff_len);
+  buff = (char *)safe_malloc(sizeof(char)*buff_len);
   buff_i = 0;
 
-  devnull = (char *)malloc(sizeof(char)*buff_len);
+  devnull = (char *)safe_malloc(sizeof(char)*buff_len);
 
-  char *passholder = (char *)malloc(sizeof(char)*max_pass_len);
+  char *passholder = (char *)safe_malloc(sizeof(char)*max_pass_len);
   char *passholder_p = passholder;
-  char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
+  char *lockholder = (char *)safe_malloc(sizeof(char)*max_pass_len);
   for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
 
   group *g = parse();
@@ -495,8 +579,8 @@ int main(int argc, char **argv)
 
   if(password_file)
   {
-    if(resume) fp = fopen(password_file, "a");
-    else       fp = fopen(password_file, "w");
+    if(resume) fp = safe_fopen(password_file, "a");
+    else       fp = safe_fopen(password_file, "w");
     if(!fp) { fprintf(stderr,"Error opening output file: %s\n",password_file); exit(1); }
   }
   else fp = stdout;
@@ -679,7 +763,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       {
         *buff = '\0';
         e->error = ERROR_EOF;
-        sprintf(e->txt,"ERROR: EOF\nline %d\n",*line_n);
+        safe_sprintf(e->txt,"ERROR: EOF\nline %d\n",*line_n);
         return 0;
       }
       s = buff;
@@ -698,7 +782,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       char *c;
       g->type = GROUP_TYPE_CHARS;
       g->n = 0;
-      g->chars = (char *)malloc(sizeof(char)*g->n+1);
+      g->chars = (char *)safe_malloc(sizeof(char)*g->n+1);
       c = g->chars;
       s++;
       *c = '\0';
@@ -711,7 +795,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       g->type = GROUP_TYPE_CHARS;
       if(*s == '\\') s++;
       g->n = 1;
-      g->chars = (char *)malloc(sizeof(char)*g->n+1);
+      g->chars = (char *)safe_malloc(sizeof(char)*g->n+1);
       c = g->chars;
       *c = *s;
       c++;
@@ -725,7 +809,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
       *b = s;
       e->error = ERROR_INVALID_LINE;
       if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-      sprintf(e->txt,"ERROR: Invalid line\nline %d ( %s )\n",*line_n,buff);
+      safe_sprintf(e->txt,"ERROR: Invalid line\nline %d ( %s )\n",*line_n,buff);
       return 0;
     }
 
@@ -755,7 +839,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         if(*c == '"')
         {
           g->n = (c-s);
-          g->chars = (char *)malloc(sizeof(char)*g->n+1);
+          g->chars = (char *)safe_malloc(sizeof(char)*g->n+1);
           c = g->chars;
           while(*s != '"' && *s != '\n' && *s != '\0')
           {
@@ -768,7 +852,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
           {
             e->error = ERROR_UNTERMINATED_STRING;
             if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-            sprintf(e->txt,"ERROR: Unterminated string\nline %d ( %s )\n",*line_n,buff);
+            safe_sprintf(e->txt,"ERROR: Unterminated string\nline %d ( %s )\n",*line_n,buff);
             return 0;
           }
           s++;
@@ -778,7 +862,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         {
           e->error = ERROR_INVALID_STRING;
           if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-          sprintf(e->txt,"ERROR: Invalid characters after begining string\nline %d ( %s )\n",*line_n,buff);
+          safe_sprintf(e->txt,"ERROR: Invalid characters after begining string\nline %d ( %s )\n",*line_n,buff);
           return 0;
         }
         break;
@@ -787,7 +871,7 @@ int parse_child(FILE *fp, int *line_n, char *buff, char **b, group *g, group *pr
         {
           e->error = ERROR_UNPARENTED_MODIFICATION;
           if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-          sprintf(e->txt,"ERROR: Modification with no previous group\nline %d ( %s )\n",*line_n,buff);
+          safe_sprintf(e->txt,"ERROR: Modification with no previous group\nline %d ( %s )\n",*line_n,buff);
           return 0;
         }
         *b = s;
@@ -820,7 +904,7 @@ int parse_tag(FILE *fp, int *line_n, char *buff, char **b, tag *t, int u, parse_
       {
         *buff = '\0';
         e->error = ERROR_BADEOF;
-        sprintf(e->txt,"ERROR: EOF parsing tag\nline %d\n",*line_n);
+        safe_sprintf(e->txt,"ERROR: EOF parsing tag\nline %d\n",*line_n);
         return 0;
       }
       s = buff;
@@ -839,8 +923,8 @@ int parse_tag(FILE *fp, int *line_n, char *buff, char **b, tag *t, int u, parse_
       if(parsed < 1 || parsed >= max_tag_count)
       {
         e->error = ERROR_TAG_RANGE;
-        if(u) sprintf(e->txt,"ERROR: unique tag outside of valid range [1-%d]\nline %d\n",max_tag_count-1,*line_n);
-        else  sprintf(e->txt,"ERROR: group tag outside of valid range [1-%d]\nline %d\n",max_tag_count-1,*line_n);
+        if(u) safe_sprintf(e->txt,"ERROR: unique tag outside of valid range [1-%d]\nline %d\n",max_tag_count-1,*line_n);
+        else  safe_sprintf(e->txt,"ERROR: group tag outside of valid range [1-%d]\nline %d\n",max_tag_count-1,*line_n);
         return 0;
       }
       s += d;
@@ -850,8 +934,8 @@ int parse_tag(FILE *fp, int *line_n, char *buff, char **b, tag *t, int u, parse_
     if(!*t)
     {
       e->error = ERROR_TAG_SPECIFY;
-      if(u) sprintf(e->txt,"ERROR: unique tag not specified\nline %d\n",*line_n);
-      else  sprintf(e->txt,"ERROR: group tag not specified\nline %d\n",*line_n);
+      if(u) safe_sprintf(e->txt,"ERROR: unique tag not specified\nline %d\n",*line_n);
+      else  safe_sprintf(e->txt,"ERROR: group tag not specified\nline %d\n",*line_n);
       return 0;
     }
   }
@@ -917,7 +1001,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
       {
         *buff = '\0';
         e->error = ERROR_BADEOF;
-        sprintf(e->txt,"ERROR: EOF parsing modification\nline %d\n",*line_n);
+        safe_sprintf(e->txt,"ERROR: EOF parsing modification\nline %d\n",*line_n);
         return 0;
       }
       s = buff;
@@ -944,7 +1028,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
       {
         e->error = ERROR_INVALID_NULL_MODIFICATION;
         if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-        sprintf(e->txt,"ERROR: Invalid null modification\nline %d ( %s )\n",*line_n,buff);
+        safe_sprintf(e->txt,"ERROR: Invalid null modification\nline %d ( %s )\n",*line_n,buff);
         return 0;
       }
       else
@@ -964,7 +1048,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
         *b = s;
         e->error = ERROR_INVALID_MODIFICATION;
         if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-        sprintf(e->txt,"ERROR: Invalid line in modification\nline %d ( %s )\n",*line_n,buff);
+        safe_sprintf(e->txt,"ERROR: Invalid line in modification\nline %d ( %s )\n",*line_n,buff);
         return 0;
       }
     }
@@ -981,7 +1065,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
         if(*c == '"')
         {
           m->n = (c-s);
-          m->chars = (char *)malloc(sizeof(char)*m->n+1);
+          m->chars = (char *)safe_malloc(sizeof(char)*m->n+1);
           c = m->chars;
           while(*s != '"' && *s != '\n' && *s != '\0')
           {
@@ -994,7 +1078,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
           {
             e->error = ERROR_UNTERMINATED_STRING;
             if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-            sprintf(e->txt,"ERROR: Unterminated modification gamut\nline %d ( %s )\n",*line_n,buff);
+            safe_sprintf(e->txt,"ERROR: Unterminated modification gamut\nline %d ( %s )\n",*line_n,buff);
             return 0;
           }
           s++;
@@ -1004,7 +1088,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
         {
           e->error = ERROR_INVALID_STRING;
           if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-          sprintf(e->txt,"ERROR: Invalid characters after begining gamut\nline %d ( %s )\n",*line_n,buff);
+          safe_sprintf(e->txt,"ERROR: Invalid characters after begining gamut\nline %d ( %s )\n",*line_n,buff);
           return 0;
         }
       }
@@ -1013,7 +1097,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
     {
       e->error = ERROR_MODIFICATION_EMPTY_GAMUT;
       if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-      sprintf(e->txt,"ERROR: gamut required with substitution or injection\nline %d ( %s )\n",*line_n,buff);
+      safe_sprintf(e->txt,"ERROR: gamut required with substitution or injection\nline %d ( %s )\n",*line_n,buff);
       return 0;
     }
   }
@@ -1025,7 +1109,7 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
 {
   char *s;
   int valid_modification = 1;
-  modification *m = (modification *)malloc(sizeof(modification));
+  modification *m = (modification *)safe_malloc(sizeof(modification));
   while(valid_modification)
   {
     zero_modification(m);
@@ -1035,8 +1119,8 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
     if(valid_modification)
     {
       g->n_mods++;
-      if(g->n_mods == 1) g->mods = (modification *)malloc(sizeof(modification));
-      else               g->mods = (modification *)realloc(g->mods,sizeof(modification)*g->n_mods);
+      if(g->n_mods == 1) g->mods = (modification *)safe_malloc(sizeof(modification));
+      else               g->mods = (modification *)safe_realloc(g->mods,sizeof(modification)*g->n_mods);
       g->mods[g->n_mods-1] = *m;
     }
   }
@@ -1052,7 +1136,7 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
     //e->error; //retain error from stack
     int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
     if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-    sprintf(e->txt,"ERROR: Invalid characters within modifiers\nline %d ( %s )\n",*line_n,buff);
+    safe_sprintf(e->txt,"ERROR: Invalid characters within modifiers\nline %d ( %s )\n",*line_n,buff);
     e->force = 1;
     return 0;
   }
@@ -1066,7 +1150,7 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int dept
   char *s;
   int valid_kid = 1;
   group *prev_c = 0;
-  group *c = (group *)malloc(sizeof(group));
+  group *c = (group *)safe_malloc(sizeof(group));
   while(valid_kid)
   {
     zero_group(c);
@@ -1083,13 +1167,13 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int dept
         e->error = ERROR_NULL_CHILD;
         int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
         if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
-        sprintf(e->txt,"Null child type found\nline %d ( %s )\n",*line_n,buff);
+        safe_sprintf(e->txt,"Null child type found\nline %d ( %s )\n",*line_n,buff);
       }
       else
       {
         g->n++;
-        if(g->n == 1) g->childs = (group *)malloc(sizeof(group));
-        else          g->childs = (group *)realloc(g->childs,sizeof(group)*g->n);
+        if(g->n == 1) g->childs = (group *)safe_malloc(sizeof(group));
+        else          g->childs = (group *)safe_realloc(g->childs,sizeof(group)*g->n);
         g->childs[g->n-1] = *c;
         prev_c = &g->childs[g->n-1];
       }
@@ -1105,9 +1189,9 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int dept
       e->error = ERROR_BADEOF; //upgrade error
       switch(g->type)
       {
-        case GROUP_TYPE_SEQUENCE: sprintf(e->txt,"ERROR: EOF unclosed sequence\nline %d\n",*line_n); break;
-        case GROUP_TYPE_OPTION:   sprintf(e->txt,"ERROR: EOF unclosed option\nline %d\n",*line_n); break;
-        case GROUP_TYPE_PERMUTE:  sprintf(e->txt,"ERROR: EOF unclosed permute\nline %d\n",*line_n); break;
+        case GROUP_TYPE_SEQUENCE: safe_sprintf(e->txt,"ERROR: EOF unclosed sequence\nline %d\n",*line_n); break;
+        case GROUP_TYPE_OPTION:   safe_sprintf(e->txt,"ERROR: EOF unclosed option\nline %d\n",*line_n); break;
+        case GROUP_TYPE_PERMUTE:  safe_sprintf(e->txt,"ERROR: EOF unclosed permute\nline %d\n",*line_n); break;
         default: break; //appease compiler
       }
       return 0;
@@ -1126,11 +1210,11 @@ int parse_childs(FILE *fp, int *line_n, char *buff, char **b, group *g, int dept
     int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
     if(buff[n_chars-1] == '\n') n_chars--; buff[n_chars] = '\0';
     if(g->type == GROUP_TYPE_SEQUENCE)
-    sprintf(e->txt,"ERROR: Invalid characters within sequence\nline %d ( %s )\n",*line_n,buff);
+    safe_sprintf(e->txt,"ERROR: Invalid characters within sequence\nline %d ( %s )\n",*line_n,buff);
     if(g->type == GROUP_TYPE_OPTION)
-    sprintf(e->txt,"ERROR: Invalid characters within option\nline %d ( %s )\n",*line_n,buff);
+    safe_sprintf(e->txt,"ERROR: Invalid characters within option\nline %d ( %s )\n",*line_n,buff);
     if(g->type == GROUP_TYPE_PERMUTE)
-    sprintf(e->txt,"ERROR: Invalid characters within permute\nline %d ( %s )\n",*line_n,buff);
+    safe_sprintf(e->txt,"ERROR: Invalid characters within permute\nline %d ( %s )\n",*line_n,buff);
     e->force = 1;
     return 0;
   }
@@ -1327,14 +1411,14 @@ void preprocess_group(group *g)
   {
     m = &g->mods[i];
 
-    if(m->n_injections)          { m->injection_i          = (int *)malloc(sizeof(int)*m->n_injections);          for(int j = 0; j < m->n_injections;          j++) m->injection_i[j]          = 0; }
-    if(m->n_smart_substitutions) { m->smart_substitution_i = (int *)malloc(sizeof(int)*m->n_smart_substitutions); for(int j = 0; j < m->n_smart_substitutions; j++) m->smart_substitution_i[j] = j; m->smart_substitution_i_c = (char *)malloc(sizeof(char)*m->n_smart_substitutions); }
-    if(m->n_substitutions)       { m->substitution_i       = (int *)malloc(sizeof(int)*m->n_substitutions);       for(int j = 0; j < m->n_substitutions;       j++) m->substitution_i[j]       = j; }
-    if(m->n_deletions)           { m->deletion_i           = (int *)malloc(sizeof(int)*m->n_deletions);           for(int j = 0; j < m->n_deletions;           j++) m->deletion_i[j]           = 0; }
+    if(m->n_injections)          { m->injection_i          = (int *)safe_malloc(sizeof(int)*m->n_injections);          for(int j = 0; j < m->n_injections;          j++) m->injection_i[j]          = 0; }
+    if(m->n_smart_substitutions) { m->smart_substitution_i = (int *)safe_malloc(sizeof(int)*m->n_smart_substitutions); for(int j = 0; j < m->n_smart_substitutions; j++) m->smart_substitution_i[j] = j; m->smart_substitution_i_c = (char *)safe_malloc(sizeof(char)*m->n_smart_substitutions); }
+    if(m->n_substitutions)       { m->substitution_i       = (int *)safe_malloc(sizeof(int)*m->n_substitutions);       for(int j = 0; j < m->n_substitutions;       j++) m->substitution_i[j]       = j; }
+    if(m->n_deletions)           { m->deletion_i           = (int *)safe_malloc(sizeof(int)*m->n_deletions);           for(int j = 0; j < m->n_deletions;           j++) m->deletion_i[j]           = 0; }
 
-    if(m->n_injections)          { m->injection_sub_i          = (int *)malloc(sizeof(int)*m->n_injections);          for(int j = 0; j < m->n_injections;          j++) m->injection_sub_i[j]          = 0; }
-    if(m->n_smart_substitutions) { m->smart_substitution_sub_i = (int *)malloc(sizeof(int)*m->n_smart_substitutions); for(int j = 0; j < m->n_smart_substitutions; j++) m->smart_substitution_sub_i[j] = 0; }
-    if(m->n_substitutions)       { m->substitution_sub_i       = (int *)malloc(sizeof(int)*m->n_substitutions);       for(int j = 0; j < m->n_substitutions;       j++) m->substitution_sub_i[j]       = 0; }
+    if(m->n_injections)          { m->injection_sub_i          = (int *)safe_malloc(sizeof(int)*m->n_injections);          for(int j = 0; j < m->n_injections;          j++) m->injection_sub_i[j]          = 0; }
+    if(m->n_smart_substitutions) { m->smart_substitution_sub_i = (int *)safe_malloc(sizeof(int)*m->n_smart_substitutions); for(int j = 0; j < m->n_smart_substitutions; j++) m->smart_substitution_sub_i[j] = 0; }
+    if(m->n_substitutions)       { m->substitution_sub_i       = (int *)safe_malloc(sizeof(int)*m->n_substitutions);       for(int j = 0; j < m->n_substitutions;       j++) m->substitution_sub_i[j]       = 0; }
   }
 
   //ensure permutations cached
@@ -1342,8 +1426,8 @@ void preprocess_group(group *g)
   {
     if(n_cached_permute_indices <= g->n)
     {
-      if(!n_cached_permute_indices) cache_permute_indices = (int ***)malloc(sizeof(int **)*(g->n+1));
-      else                          cache_permute_indices = (int ***)realloc(cache_permute_indices,sizeof(int **)*(g->n+1));
+      if(!n_cached_permute_indices) cache_permute_indices = (int ***)safe_malloc(sizeof(int **)*(g->n+1));
+      else                          cache_permute_indices = (int ***)safe_realloc(cache_permute_indices,sizeof(int **)*(g->n+1));
       for(int i = n_cached_permute_indices; i < g->n+1; i++) cache_permute_indices[i] = 0;
       n_cached_permute_indices = g->n+1;
     }
@@ -1351,14 +1435,14 @@ void preprocess_group(group *g)
     {
       int f = g->n;
       for(int i = g->n-1; i > 1; i--) f *= i;
-      cache_permute_indices[g->n] = (int **)malloc(sizeof(int *)*(f+1));
+      cache_permute_indices[g->n] = (int **)safe_malloc(sizeof(int *)*(f+1));
       cache_permute_indices[g->n][0] = 0;
       cache_permute_indices[g->n][0] += f;
       for(int i = 0; i < f; i++)
-        cache_permute_indices[g->n][i+1] = (int *)malloc(sizeof(int)*g->n);
+        cache_permute_indices[g->n][i+1] = (int *)safe_malloc(sizeof(int)*g->n);
 
       //heap's algo- don't really understand
-      int *c = (int *)malloc(sizeof(int)*g->n);
+      int *c = (int *)safe_malloc(sizeof(int)*g->n);
       for(int i = 0; i < g->n; i++) c[i] = 0;
       for(int i = 0; i < g->n; i++) cache_permute_indices[g->n][1][i] = i;
       if(f > 1) for(int i = 0; i < g->n; i++) cache_permute_indices[g->n][2][i] = i;
@@ -1450,7 +1534,7 @@ void collapse_group(group *g, group *root, int handle_gamuts)
       {
         if(g->type == GROUP_TYPE_OPTION && c->tag_u) continue;
         absorb_tags(g,c);
-        g->childs = (group *)realloc(g->childs,sizeof(group)*(g->n-1+c->n));
+        g->childs = (group *)safe_realloc(g->childs,sizeof(group)*(g->n-1+c->n));
         c = &g->childs[i]; //need to re-assign c, as g has been realloced
         group *oc = c->childs;
         int ocn = c->n;
@@ -1497,18 +1581,18 @@ group *parse()
   #endif
   else
   {
-    fp = fopen(seed_file, "r");
+    fp = safe_fopen(seed_file, "r");
     if(!fp) { fprintf(stderr,"Error opening seed file: %s\n",seed_file); exit(1); }
   }
-  buff = (char *)malloc(sizeof(char)*max_read_line_len);
+  buff = (char *)safe_malloc(sizeof(char)*max_read_line_len);
 
   parse_error e;
   e.error = ERROR_NULL;
   e.force = 0;
-  e.txt = (char *)malloc(sizeof(char)*max_read_line_len);
+  e.txt = (char *)safe_malloc(sizeof(char)*max_sprintf_len);
   int line_n = 0;
 
-  group *g = (group *)malloc(sizeof(group));
+  group *g = (group *)safe_malloc(sizeof(group));
   zero_group(g);
   g->type = GROUP_TYPE_SEQUENCE;
   char *b = buff;
@@ -1865,7 +1949,7 @@ int sprint_group(group *g, int inert, int *utag_dirty, int *gtag_dirty, char *lo
     }
       break;
     case GROUP_TYPE_CHARS:
-      strcpy(buff,g->chars);
+      safe_strcpy(buff,g->chars);
       *buff_p = buff+g->n;
       inert = smodify_group(g, inert, lockholder, buff, buff_p);
       break;
@@ -2217,9 +2301,9 @@ float approximate_length_modified_group(group *g)
     for(int i = 0; i < g->n_mods; i++)
     {
       modification *m = &g->mods[i];
-      //if(l > 0                                             && m->n_smart_substitutions > 0) ; //do nothing
+    //if(l > 0                                             && m->n_smart_substitutions > 0) ; //do nothing
       if(l+m->n_injections > 0                             && m->n_injections          > 0) e += m->n_injections;
-      //if(l-m->n_smart_substitutions > 0                    && m->n_substitutions       > 0) ; //do nothing
+    //if(l-m->n_smart_substitutions > 0                    && m->n_substitutions       > 0) ; //do nothing
       if(l-m->n_smart_substitutions-m->n_substitutions > 0 && m->n_deletions           > 0) e -= m->n_deletions;
       accrue_e += e;
       e = 0;
@@ -2317,13 +2401,13 @@ group *unroll_group(group *g)
     }
     if(doit)//if !doit, then it's already optimal options or chars
     {
-      char *passholder = (char *)malloc(sizeof(char)*max_pass_len);
+      char *passholder = (char *)safe_malloc(sizeof(char)*max_pass_len);
       char *passholder_p = passholder;
-      char *lockholder = (char *)malloc(sizeof(char)*max_pass_len);
+      char *lockholder = (char *)safe_malloc(sizeof(char)*max_pass_len);
       for(int i = 0; i < max_pass_len; i++) lockholder[i] = 0;
 
       int done = 0;
-      group *ng = (group *)malloc(sizeof(group));
+      group *ng = (group *)safe_malloc(sizeof(group));
       zero_group(ng);
       ng->type = GROUP_TYPE_OPTION;
       absorb_tags(ng,g);
@@ -2335,14 +2419,14 @@ group *unroll_group(group *g)
         done = !sprint_group(g, 0, &utag_dirty, &gtag_dirty, lockholder, &passholder_p);
         *passholder_p = '\0';
         ng->n++;
-        if(ng->n == 1) ng->childs = (group *)malloc(sizeof(group));
-        else           ng->childs = (group *)realloc(ng->childs,sizeof(group)*ng->n);
+        if(ng->n == 1) ng->childs = (group *)safe_malloc(sizeof(group));
+        else           ng->childs = (group *)safe_realloc(ng->childs,sizeof(group)*ng->n);
         cg = &ng->childs[ng->n-1];
         zero_group(cg);
         cg->type = GROUP_TYPE_CHARS;
         cg->n = passholder_p-passholder;
-        cg->chars = (char *)malloc(sizeof(char)*(cg->n+1));
-        strcpy(cg->chars,passholder);
+        cg->chars = (char *)safe_malloc(sizeof(char)*(cg->n+1));
+        safe_strcpy(cg->chars,passholder);
         passholder_p = passholder;
       }
 
@@ -2422,12 +2506,12 @@ void print_seed(group *g, int print_progress, int selected, int indent)
 void checkpoint_to_file(group *g)
 {
   FILE *fp;
-  fp = fopen(checkpoint_file_bak, "w");
+  fp = safe_fopen(checkpoint_file_bak, "w");
   if(!fp) { fprintf(stderr,"Error opening checkpoint bak file: %s\n",password_file); exit(1); }
   checkpoint_group(g,fp);
   fclose(fp);
 
-  fp = fopen(checkpoint_file, "w");
+  fp = safe_fopen(checkpoint_file, "w");
   if(!fp) { fprintf(stderr,"Error opening checkpoint file: %s\n",password_file); exit(1); }
   checkpoint_group(g,fp);
   fclose(fp);
@@ -2471,7 +2555,7 @@ void checkpoint_group(group *g, FILE *fp)
 void resume_from_file(group *g)
 {
   FILE *fp;
-  fp = fopen(resume_file, "r");
+  fp = safe_fopen(resume_file, "r");
   if(!fp) { fprintf(stderr,"Error opening progress file: %s\n",password_file); exit(1); }
   resume_group(g,fp);
   fclose(fp);
@@ -2479,8 +2563,8 @@ void resume_from_file(group *g)
 
 void resume_group(group *g, FILE *fp)
 {
-  fscanf(fp,"%d\n",&g->i);
-  fscanf(fp,"%d\n",&g->mod_i);
+  safe_fscanf(fp,"%d\n",&g->i);
+  safe_fscanf(fp,"%d\n",&g->mod_i);
   if(g->type != GROUP_TYPE_CHARS)
   {
     for(int i = 0; i < g->n; i++)
@@ -2491,23 +2575,23 @@ void resume_group(group *g, FILE *fp)
     modification *m = &g->mods[i];
     for(int j = 0; j < m->n_injections; j++)
     {
-      fscanf(fp,"%d\n",&m->injection_i[j]);
-      fscanf(fp,"%d\n",&m->injection_sub_i[j]);
+      safe_fscanf(fp,"%d\n",&m->injection_i[j]);
+      safe_fscanf(fp,"%d\n",&m->injection_sub_i[j]);
     }
     for(int j = 0; j < m->n_smart_substitutions; j++)
     {
-      fscanf(fp,"%d\n",&m->smart_substitution_i[j]);
-      fscanf(fp,"%c\n",&m->smart_substitution_i_c[j]);
-      fscanf(fp,"%d\n",&m->smart_substitution_sub_i[j]);
+      safe_fscanf(fp,"%d\n",&m->smart_substitution_i[j]);
+      safe_fscanf(fp,"%c\n",&m->smart_substitution_i_c[j]);
+      safe_fscanf(fp,"%d\n",&m->smart_substitution_sub_i[j]);
     }
     for(int j = 0; j < m->n_substitutions; j++)
     {
-      fscanf(fp,"%d\n",&m->substitution_i[j]);
-      fscanf(fp,"%d\n",&m->substitution_sub_i[j]);
+      safe_fscanf(fp,"%d\n",&m->substitution_i[j]);
+      safe_fscanf(fp,"%d\n",&m->substitution_sub_i[j]);
     }
     for(int j = 0; j < m->n_deletions; j++)
     {
-      fscanf(fp,"%d\n",&m->deletion_i[j]);
+      safe_fscanf(fp,"%d\n",&m->deletion_i[j]);
     }
   }
 }
