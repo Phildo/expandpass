@@ -1,5 +1,6 @@
 EXE=expandpass
-SRC=gen.cpp
+SRCDIR=src
+SRC=$(SRCDIR)/util.cpp $(SRCDIR)/expansion.cpp $(SRCDIR)/expand.cpp $(SRCDIR)/parse.cpp $(SRCDIR)/expandpass.cpp 
 NOWARN=-Wno-write-strings
 ARGS=
 
@@ -31,7 +32,7 @@ password.txt: $(EXE)
 test: $(EXE)
 	tests/run.sh
 
-tags:
+tags: $(SRC)
 	ctags ./*
 
 clean:
