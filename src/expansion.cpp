@@ -343,3 +343,67 @@ void collapse_group(group *g, group *root, int handle_gamuts)
   }
 }
 
+void print_tag(tag t, int u)
+{
+  if(u) printf("U");
+  else  printf("G");
+  int first = 1;
+  for(int i = 0; i < max_tag_count; i++)
+  {
+    if(t & (1 << i))
+    {
+      if(!first)printf(",");first = 0;
+      print_number(i+1);
+    }
+  }
+}
+
+void print_seed(group *g, int print_progress, int selected, int indent)
+{
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); printf("<"); if(g->tag_u) print_tag(g->tag_u,1); if(g->tag_g) print_tag(g->tag_g,0); printf("\n");
+      for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],print_progress,selected,indent+1);
+      for(int i = 0; i < indent; i++) printf("  "); printf(">"); if(selected) printf("*"); printf("\n");
+      break;
+    case GROUP_TYPE_OPTION:
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag_u || g->tag_g) { printf("<"); if(g->tag_u) print_tag(g->tag_u,1); if(g->tag_g) print_tag(g->tag_g,0); } printf("{"); printf("\n");
+      for(int i = 0; i < g->n; i++) { print_seed(&g->childs[i],print_progress,print_progress && selected && i == g->i,indent+1); }
+      for(int i = 0; i < indent; i++) printf("  "); printf("}"); if(g->tag_u || g->tag_g) printf(">"); if(selected) printf("*"); printf("\n");
+      break;
+    case GROUP_TYPE_PERMUTE:
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag_u || g->tag_g) { printf("<"); if(g->tag_u) print_tag(g->tag_u,1); if(g->tag_g) print_tag(g->tag_g,0); } printf("("); printf("\n");
+      if(print_progress) { for(int i = 0; i < g->n; i++) print_seed(&g->childs[cache_permute_indices[g->n][g->i+1][i]],print_progress,selected,indent+1); }
+      else               { for(int i = 0; i < g->n; i++) print_seed(&g->childs[i],                                     print_progress,0,indent+1); }
+      for(int i = 0; i < indent; i++) printf("  "); printf(")"); if(g->tag_u || g->tag_g) printf(">"); if(selected) printf("*"); printf("\n");
+      break;
+    case GROUP_TYPE_CHARS:
+      for(int i = 0; i < indent; i++) printf("  "); if(selected) printf("*"); if(g->tag_u || g->tag_g) { printf("<"); if(g->tag_u) print_tag(g->tag_u,1); if(g->tag_g) print_tag(g->tag_g,0); } if(g->n) printf("\"%s\"",g->chars); else printf("-"); if(g->tag_u || g->tag_g) printf(">"); if(selected) printf("*"); printf("\n");
+      break;
+    default: //appease compiler
+      break;
+  }
+  if(g->n_mods)
+  {
+    for(int i = 0; i < indent; i++) printf("  "); printf("[\n");
+    for(int i = 0; i < g->n_mods; i++)
+    {
+      modification *m = &g->mods[i];
+      for(int j = 0; j < indent+1; j++) printf("  ");
+      if(m->n_injections+m->n_smart_substitutions+m->n_substitutions+m->n_deletions+m->n_copys == 0) printf("-\n");
+      else
+      {
+        if(m->n_injections)          printf("i%d ",m->n_injections);
+        if(m->n_smart_substitutions) printf("m%d ",m->n_smart_substitutions);
+        if(m->n_substitutions)       printf("s%d ",m->n_substitutions);
+        if(m->n_deletions)           printf("d%d ",m->n_deletions);
+        if(m->n_copys)               printf("d%d ",m->n_copys+1);
+        if(m->n) printf("\"%s\"",m->chars);
+        printf("\n");
+      }
+    }
+    for(int i = 0; i < indent; i++) printf("  "); printf("]\n");
+  }
+}
+

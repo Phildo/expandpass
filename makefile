@@ -1,6 +1,6 @@
 EXE=expandpass
 SRCDIR=src
-SRC=$(SRCDIR)/util.cpp $(SRCDIR)/expansion.cpp $(SRCDIR)/expand.cpp $(SRCDIR)/parse.cpp $(SRCDIR)/expandpass.cpp 
+SRC=gen.cpp
 NOWARN=-Wno-write-strings
 ARGS=
 

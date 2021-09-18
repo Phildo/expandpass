@@ -10,12 +10,6 @@ if(MSVC)
   add_compile_options(/FC)
 endif()
 
-set(SOURCE_FILES 
-  src/util.cpp
-  src/expansion.cpp
-  src/expand.cpp
-  src/parse.cpp
-  src/expandpass.cpp
-)
+set(SOURCE_FILES gen.cpp)
 add_executable(expandpass ${SOURCE_FILES})
 

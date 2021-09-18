@@ -112,6 +112,7 @@ float approximate_length_premodified_group(group *g);
 float approximate_length_modified_group(group *g);
 void preprocess_group(group *g);
 group *unroll_group(group *g, int threshhold, char *devnull);
+void print_seed(group *g, int print_progress, int selected, int indent);
 
 #endif //EXPANSION_H
 
