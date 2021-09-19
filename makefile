@@ -2,6 +2,7 @@ EXE=expandpass
 SRCDIR=src
 SRC=gen.cpp
 NOWARN=-Wno-write-strings
+CFLAGS=$(NOWARN) -O3
 ARGS=
 
 make: $(EXE)
@@ -14,7 +15,7 @@ frun:
 	./$(EXE) $(ARGS)
 
 $(EXE).dSYM:
-	gcc $(NOWARN) -ggdb3 $(SRC) -o $(EXE)
+	gcc $(CFLAGS) -ggdb3 $(SRC) -o $(EXE)
 
 builddebug: $(EXE).dSYM
 	
@@ -24,7 +25,7 @@ debug: $(EXE).dSYM
 	gdb --args ./$(EXE) $(ARGS)
 
 $(EXE): $(SRC) seed.txt
-	gcc $(NOWARN) $(SRC) -o $(EXE)
+	gcc $(CFLAGS) $(SRC) -o $(EXE)
 
 password.txt: $(EXE)
 	./$(EXE) $(ARGS)

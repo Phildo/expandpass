@@ -4,7 +4,10 @@
 #include "expand.h"
 #include "validate.h"
 
+void print_estimation(group *g, const char *seed_file, int estimate_rate);
+void checkpoint_to_file(const char *filename, group *g);
 void checkpoint_group(group *g, FILE *fp);
+void resume_from_file(const char *filename, group *g);
 void resume_group(group *g, FILE *fp);
 
 int main(int argc, char **argv)
@@ -254,33 +257,12 @@ int main(int argc, char **argv)
 
   if(estimate)
   {
-    unsigned long long int a = estimate_group(g);
-    unsigned long long int d;
-    unsigned long long int h;
-    unsigned long long int m;
-    unsigned long long int s;
-    fprintf(stdout,"estimated output for seed file (%s): %llu @ %d/s\n",seed_file,a,estimate_rate);
-    s = a/estimate_rate;
-    m = s/60; //minute
-    h = m/60; //hour
-    d = h/24; //day
-    if(d) { fprintf(stdout,"%llud ",d); h -= d*24; m -= d*24*60; s -= d*24*60*60; }
-    if(h) { fprintf(stdout,"%lluh ",h);            m -= h*60;    s -= h*60*60; }
-    if(m) { fprintf(stdout,"%llum ",m);                          s -= m*60; }
-    if(s) { fprintf(stdout,"%llus ",s); ; }
-    if(d+h+m+s <= 0) { fprintf(stdout,"0s "); }
-    fprintf(stdout,"\n");
+    print_estimation(g,seed_file,estimate_rate);
     exit(0);
   }
 
   if(resume)
-  {
-    FILE *fp;
-    fp = safe_fopen(resume_file, "r");
-    if(!fp) { fprintf(stderr,"Error opening progress file: %s\n",resume_file); exit(1); }
-    resume_group(g,fp);
-    fclose(fp);
-  }
+    resume_from_file(resume_file, g);
 
   FILE *fp;
   if(password_file)
@@ -343,22 +325,22 @@ int main(int argc, char **argv)
     }
     if(checkpoint && a >= checkpoint)
     {
-      FILE *fp;
-      fp = safe_fopen(checkpoint_file_bak, "w");
-      if(!fp) { fprintf(stderr,"Error opening checkpoint bak file: %s\n",password_file); exit(1); }
-      checkpoint_group(g,fp);
-      fclose(fp);
-
-      fp = safe_fopen(checkpoint_file, "w");
-      if(!fp) { fprintf(stderr,"Error opening checkpoint file: %s\n",password_file); exit(1); }
-      checkpoint_group(g,fp);
-      fclose(fp);
-
+      checkpoint_to_file(checkpoint_file_bak,g);
+      checkpoint_to_file(checkpoint_file    ,g);
       a = 0;
     }
   }
 
   fwrite(buff,sizeof(char),buff_i,fp);
+  fclose(fp);
+}
+
+void resume_from_file(const char *filename, group *g)
+{
+  FILE *fp;
+  fp = safe_fopen(filename, "r");
+  if(!fp) { fprintf(stderr,"Error opening progress file: %s\n",filename); exit(1); }
+  resume_group(g,fp);
   fclose(fp);
 }
 
@@ -397,6 +379,15 @@ void resume_group(group *g, FILE *fp)
   }
 }
 
+void checkpoint_to_file(const char *filename, group *g)
+{
+  FILE *fp;
+  fp = safe_fopen(filename, "w");
+  if(!fp) { fprintf(stderr,"Error opening checkpoint bak file: %s\n",filename); exit(1); }
+  checkpoint_group(g,fp);
+  fclose(fp);
+}
+
 void checkpoint_group(group *g, FILE *fp)
 {
   fprintf(fp,"%d\n",g->i);
@@ -430,5 +421,25 @@ void checkpoint_group(group *g, FILE *fp)
       fprintf(fp,"%d\n",m->deletion_i[j]);
     }
   }
+}
+
+void print_estimation(group *g, const char *seed_file, int estimate_rate)
+{
+  unsigned long long int a = estimate_group(g);
+  unsigned long long int d;
+  unsigned long long int h;
+  unsigned long long int m;
+  unsigned long long int s;
+  fprintf(stdout,"estimated output for seed file (%s): %llu @ %d/s\n",seed_file,a,estimate_rate);
+  s = a/estimate_rate;
+  m = s/60; //minute
+  h = m/60; //hour
+  d = h/24; //day
+  if(d) { fprintf(stdout,"%llud ",d); h -= d*24; m -= d*24*60; s -= d*24*60*60; }
+  if(h) { fprintf(stdout,"%lluh ",h);            m -= h*60;    s -= h*60*60; }
+  if(m) { fprintf(stdout,"%llum ",m);                          s -= m*60; }
+  if(s) { fprintf(stdout,"%llus ",s); ; }
+  if(d+h+m+s <= 0) { fprintf(stdout,"0s "); }
+  fprintf(stdout,"\n");
 }
 
