@@ -4,7 +4,7 @@
 #include "util.h"
 
 static const int version_maj = 0;
-static const int version_min = 24;
+static const int version_min = 25;
 
 static const int max_pass_len = 300;
 static const int max_tag_count = 16;
@@ -27,7 +27,7 @@ enum GROUP_TYPE
   GROUP_TYPE_OPTION,
   GROUP_TYPE_PERMUTE,
   GROUP_TYPE_CHARS,
-  GROUP_TYPE_MODIFICATION, //special case
+  GROUP_TYPE_MODIFICATION, //special case, shouldn't exist in formed group
   GROUP_TYPE_COUNT,
 };
 
@@ -86,7 +86,7 @@ struct group
   tag zerod_sum_tag_g;
   tag sum_tag_u;
   tag sum_tag_g;
-  int countable;
+  int countable; //TODO: fix countability
   int estimate;
 };
 inline void zero_group(group *g)

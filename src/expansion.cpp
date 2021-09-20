@@ -75,7 +75,7 @@ float approximate_length_premodified_group(group *g)
       l = 0;
       for(int i = 0; i < g->n; i++)
         l += approximate_length_modified_group(&g->childs[i]);
-      l /= g->n;
+      l /= g->n; //TODO: taking the average here renders further estimation approximate (ie, uncountable)
       break;
     case GROUP_TYPE_PERMUTE:
       l = 0;
@@ -350,11 +350,53 @@ void propagate_countability(group *g)
 
 expand_iter state_from_countable_group(group *g)
 {
-  return 0;
+  expand_iter state = 0;
+  expand_iter tmp = 0;
+  expand_iter mul = 0;
+  switch(g->type)
+  {
+    case GROUP_TYPE_OPTION:
+      for(int i = 0; i < g->i; i++)
+        state += g->childs[i].estimate;
+      state += state_from_countable_group(&g->childs[g->i]);
+      break;
+    case GROUP_TYPE_PERMUTE:
+      state = 1;
+      for(int i = 0; i < g->n; i++)
+        state *= g->childs[i].estimate;
+      state = g->i*state;
+      //no break!
+    case GROUP_TYPE_SEQUENCE:
+      mul = 1;
+      for(int i = 0; i < g->n; i++)
+          mul *= g->childs[i].estimate;
+      for(int i = 0; i < g->n; i++)
+      {
+        mul /= g->childs[i].estimate;
+        state += mul*state_from_countable_group(&g->childs[g->i]);
+      }
+      break;
+    case GROUP_TYPE_CHARS:
+    case GROUP_TYPE_MODIFICATION:
+    default:
+      state = 1; //not stateful
+  }
+
+/*
+  int l = approximate_length_premodified_group(g);
+  for(int i = 0; i < g->n_mods; i++)
+  {
+    modification *m = &g->mods[i];
+    //TODO
+  }
+*/
+
+  return state;
 }
 
 void resume_countable_group(group *g, expand_iter state)
 {
+  //TODO:
 }
 
 void free_modification_contents(modification *m)

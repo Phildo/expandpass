@@ -74,6 +74,7 @@ int parse_child(FILE *fp, int unquoted, int *line_n, char *buff, char **b, group
     }
 
     char *c;
+    if(g->type == GROUP_TYPE_OPTION) g->countable = 0; //TODO: this limitation renders "countability" a farce
     switch(g->type)
     {
       case GROUP_TYPE_SEQUENCE:
