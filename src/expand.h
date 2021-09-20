@@ -5,7 +5,6 @@
 
 char smart_sub(int i, char key);
 void basic_smart_substitute(int i, int sub_i, char *s);
-unsigned long long int estimate_group(group *g);
 tag stamp_tag(tag t, tag dst, int inc);
 tag *clone_tag(tag src, tag *t);
 void stamp_tag_map(tag t, tag_map *map, int inc);

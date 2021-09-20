@@ -3,7 +3,7 @@ CSRC=gen.cpp
 SRCDIR=src
 DEP=$(SRCDIR)/util.cpp $(SRCDIR)/util.cpp $(SRCDIR)/expansion.cpp $(SRCDIR)/parse.cpp $(SRCDIR)/expand.cpp $(SRCDIR)/validate.cpp $(SRCDIR)/expandpass.cpp $(CSRC)
 NOWARN=-Wno-write-strings
-CFLAGS=$(NOWARN) -O3
+CFLAGS=$(NOWARN)# -O3
 ARGS=
 
 make: $(EXE)
@@ -15,15 +15,15 @@ run: password.txt
 frun:
 	./$(EXE) $(ARGS)
 
-$(EXE).dSYM:
+$(EXE).dSYM: $(DEP)
 	gcc $(CFLAGS) -ggdb3 $(CSRC) -o $(EXE)
 
 builddebug: $(EXE).dSYM
 	
 
 debug: $(EXE).dSYM
-#	lldb -- ./$(EXE) $(ARGS)
-	gdb --args ./$(EXE) $(ARGS)
+	lldb -- ./$(EXE) $(ARGS)
+#	gdb --args ./$(EXE) $(ARGS)
 
 $(EXE): $(DEP) seed.txt
 	gcc $(CFLAGS) $(CSRC) -o $(EXE)

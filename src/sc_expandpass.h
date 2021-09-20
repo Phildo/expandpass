@@ -17,6 +17,17 @@ void sc_expandpass_init(sc_expandpass_ini ini)
   fclose(fp);
 
   if(!devnull) devnull = (char *)safe_malloc(sizeof(char)*1024*1024);
+
+  int unroll = 1000;
+
+  collapse_group(g,g,0);
+  elevate_tags(g,0,0);
+  prepare_group_iteration(g);
+  unroll_group(g, unroll, devnull);
+  collapse_group(g,g,1);
+  propagate_countability(g);
+
+  if(!g->countable) { fprintf(stderr,"Seed file uncountable: %s\n",seed_file); exit(1); }
 }
 
 int sc_expandpass_keyspace()
@@ -26,7 +37,7 @@ int sc_expandpass_keyspace()
 
 void sc_expandpass_seek(int state)
 {
-  resume_linear_group(g,state);
+  resume_countable_group(g,state);
 }
 
 //do I print to stdout? a filepointer? a buffer?

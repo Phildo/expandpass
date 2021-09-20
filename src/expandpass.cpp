@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 
   char *devnull = (char *)safe_malloc(sizeof(char)*buff_len);
 
-  group *g;
+  group *g = 0;
   {
     FILE *fp;
     #ifdef _WIN32
@@ -238,11 +238,10 @@ int main(int argc, char **argv)
 
   collapse_group(g,g,0);
   elevate_tags(g,0,0);
-  preprocess_group(g);
-
+  prepare_group_iteration(g);
   if(unroll) unroll_group(g, unroll, devnull);
-
   collapse_group(g,g,1);
+  propagate_countability(g);
 
   if(normalize)
   {
@@ -276,7 +275,7 @@ int main(int argc, char **argv)
   memset(lockholder,0,sizeof(char)*max_pass_len);
 
   int done = 0;
-  long long int a = 0;
+  expand_iter a = 0;
   tag tag_u = 0;
   tag tag_g = 0;
   tag inv_tag_g = 0;
@@ -420,11 +419,11 @@ void checkpoint_group(group *g, FILE *fp)
 
 void print_estimation(group *g, const char *seed_file, int estimate_rate)
 {
-  unsigned long long int a = estimate_group(g);
-  unsigned long long int d;
-  unsigned long long int h;
-  unsigned long long int m;
-  unsigned long long int s;
+  expand_iter a = estimate_group(g);
+  int d;
+  int h;
+  int m;
+  int s;
   fprintf(stdout,"estimated output for seed file (%s): %llu @ %d/s\n",seed_file,a,estimate_rate);
   s = a/estimate_rate;
   m = s/60; //minute

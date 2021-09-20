@@ -4,6 +4,7 @@
 
 int parse_child(FILE *fp, int unquoted, int *line_n, char *buff, char **b, group *g, group *prev_g, int depth, parse_error *er)
 {
+  g->countable = 1; //until proven otherwise
   int n_chars = 0; while(buff[n_chars] != '\0') n_chars++;
   size_t line_buff_len = max_read_line_len;
   char *s = *b;
@@ -84,6 +85,8 @@ int parse_child(FILE *fp, int unquoted, int *line_n, char *buff, char **b, group
         {
           if(!parse_tag(fp, line_n, buff, b, &g->tag_u, 1, er)) return 0;
           if(!parse_tag(fp, line_n, buff, b, &g->tag_g, 0, er)) return 0;
+          if(g->tag_u) g->countable = 0;
+          if(g->tag_g) g->countable = 0;
         }
         return parse_childs(fp, unquoted, line_n, buff, b, g, depth+1, er);
         break;
@@ -319,6 +322,7 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
 
 int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *er)
 {
+  g->countable = 0;
   char *s;
   int valid_modification = 1;
   modification *m = (modification *)safe_malloc(sizeof(modification));
