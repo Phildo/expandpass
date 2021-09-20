@@ -63,6 +63,14 @@ It can also be run (and behaves as expected) in standard unix-y way
 `--version` Shows version. `expandpass --version`
 
 
+# COMPILE:
+
+expandpass is written using C++, but only uses the c standard library (conversion to pure C should be relatively simple, if necessary).
+`g++ gen.cpp -o expandpass` (or similar w/ any C++ compiler) should be sufficient.
+There is a Makefile and CMakeLists for the purposes of stubbing out a basic build system,
+but they were built with only my simple environment in mind.
+
+
 # THE SEED:
 
 The most basic atom of a seed is a **String**, specified with `""`
@@ -375,7 +383,7 @@ That said, some ideas/next steps would be:
 
 # LICENSE:
 
-Currently MIT, but honestly, convince me otherwise if that's a bad idea. The point: free to use, modify, distribute.
+MIT
 
 
 # FURTHER INFO
