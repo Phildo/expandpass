@@ -240,12 +240,7 @@ int main(int argc, char **argv)
   elevate_tags(g,0,0);
   preprocess_group(g);
 
-  if(unroll)
-  {
-    group *og = g;
-    g = unroll_group(og, unroll, devnull);
-    if(g != og) free(og);
-  }
+  if(unroll) unroll_group(g, unroll, devnull);
 
   collapse_group(g,g,1);
 

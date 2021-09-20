@@ -164,11 +164,10 @@ unsigned long long int estimate_group(group *g)
   return a;
 }
 
-group *unroll_group(group *g, int threshhold, char *devnull)
+void unroll_group(group *g, int threshhold, char *devnull)
 {
+  if(g->child_tag_u || g->child_tag_g) return;
   int doit = 0;
-  if(g->child_tag_u) return g;
-  if(g->child_tag_g) return g;
   if(estimate_group(g) < threshhold)
   {
     if(!doit && g->n_mods) doit = 1;
@@ -212,26 +211,16 @@ group *unroll_group(group *g, int threshhold, char *devnull)
 
       free(passholder);
       free(lockholder);
-      //TODO: recursively free g's contents, g's modifications, etc... (but leave g to be freed by caller)
-      return ng;
+      free_group_contents(g);
+      *g = *ng;
+      free(ng);
     }
   }
   else if(g->type != GROUP_TYPE_CHARS)
   {
-    group *og;
-    group *ng;
     for(int i = 0; i < g->n; i++)
-    {
-      og = &g->childs[i];
-      ng = unroll_group(og, threshhold, devnull);
-      if(og != ng)
-      {
-        *og = *ng;
-        free(ng);
-      }
-    }
+      unroll_group(&g->childs[i], threshhold, devnull);
   }
-  return g;
 }
 
 void preprocess_group(group *g)
@@ -355,6 +344,48 @@ void print_tag(tag t, int u)
       if(!first)printf(",");first = 0;
       print_number(i+1);
     }
+  }
+}
+
+void free_modification_contents(modification *m)
+{
+  if(m->chars)                    free(m->chars);
+  if(m->injection_i)              free(m->injection_i);
+  if(m->injection_sub_i)          free(m->injection_sub_i);
+  if(m->substitution_i)           free(m->substitution_i);
+  if(m->substitution_sub_i)       free(m->substitution_sub_i);
+  if(m->smart_substitution_i)     free(m->smart_substitution_i);
+  if(m->smart_substitution_i_c)   free(m->smart_substitution_i_c);
+  if(m->smart_substitution_sub_i) free(m->smart_substitution_sub_i);
+  if(m->deletion_i)               free(m->deletion_i);
+}
+
+void free_group_contents(group *g)
+{
+  switch(g->type)
+  {
+    case GROUP_TYPE_SEQUENCE:
+    case GROUP_TYPE_OPTION:
+    case GROUP_TYPE_PERMUTE:
+      for(int i = 0; i < g->n; i++)
+        free_group_contents(&g->childs[i]);
+      free(g->childs);
+      break;
+    case GROUP_TYPE_CHARS:
+      free(g->chars);
+      break;
+    case GROUP_TYPE_NULL:
+    case GROUP_TYPE_MODIFICATION:
+    case GROUP_TYPE_COUNT:
+    default:
+      //should never hit
+      break;
+  }
+  if(g->n_mods)
+  {
+    for(int i = 0; i < g->n_mods; i++)
+      free_modification_contents(&g->mods[i]);
+    free(g->mods);
   }
 }
 

@@ -1,6 +1,7 @@
 EXE=expandpass
+CSRC=gen.cpp
 SRCDIR=src
-SRC=gen.cpp
+DEP=$(SRCDIR)/util.cpp $(SRCDIR)/util.cpp $(SRCDIR)/expansion.cpp $(SRCDIR)/parse.cpp $(SRCDIR)/expand.cpp $(SRCDIR)/validate.cpp $(SRCDIR)/expandpass.cpp $(CSRC)
 NOWARN=-Wno-write-strings
 CFLAGS=$(NOWARN) -O3
 ARGS=
@@ -15,7 +16,7 @@ frun:
 	./$(EXE) $(ARGS)
 
 $(EXE).dSYM:
-	gcc $(CFLAGS) -ggdb3 $(SRC) -o $(EXE)
+	gcc $(CFLAGS) -ggdb3 $(CSRC) -o $(EXE)
 
 builddebug: $(EXE).dSYM
 	
@@ -24,8 +25,8 @@ debug: $(EXE).dSYM
 #	lldb -- ./$(EXE) $(ARGS)
 	gdb --args ./$(EXE) $(ARGS)
 
-$(EXE): $(SRC) seed.txt
-	gcc $(CFLAGS) $(SRC) -o $(EXE)
+$(EXE): $(DEP) seed.txt
+	gcc $(CFLAGS) $(CSRC) -o $(EXE)
 
 password.txt: $(EXE)
 	./$(EXE) $(ARGS)
@@ -33,7 +34,7 @@ password.txt: $(EXE)
 test: $(EXE)
 	tests/run.sh
 
-tags: $(SRC)
+tags: $(DEP)
 	ctags ./*
 
 clean:
