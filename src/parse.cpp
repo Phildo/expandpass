@@ -322,7 +322,6 @@ int parse_modification(FILE *fp, int *line_n, char *buff, char **b, modification
 
 int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, parse_error *er)
 {
-  g->countable = 0;
   char *s;
   int valid_modification = 1;
   modification *m = (modification *)safe_malloc(sizeof(modification));
@@ -334,6 +333,7 @@ int parse_modifications(FILE *fp, int *line_n, char *buff, char **b, group *g, p
 
     if(valid_modification)
     {
+      if(m->n_smart_substitutions) g->countable = 0;
       g->n_mods++;
       if(g->n_mods == 1) g->mods = (modification *)safe_malloc(sizeof(modification));
       else               g->mods = (modification *)safe_realloc(g->mods,sizeof(modification)*g->n_mods);

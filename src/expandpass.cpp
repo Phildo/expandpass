@@ -429,10 +429,10 @@ void print_estimation(group *g, const char *seed_file, int estimate_rate)
   m = s/60; //minute
   h = m/60; //hour
   d = h/24; //day
-  if(d) { fprintf(stdout,"%llud ",d); h -= d*24; m -= d*24*60; s -= d*24*60*60; }
-  if(h) { fprintf(stdout,"%lluh ",h);            m -= h*60;    s -= h*60*60; }
-  if(m) { fprintf(stdout,"%llum ",m);                          s -= m*60; }
-  if(s) { fprintf(stdout,"%llus ",s); ; }
+  if(d) { fprintf(stdout,"%dd ",d); h -= d*24; m -= d*24*60; s -= d*24*60*60; }
+  if(h) { fprintf(stdout,"%dh ",h);            m -= h*60;    s -= h*60*60; }
+  if(m) { fprintf(stdout,"%dm ",m);                          s -= m*60; }
+  if(s) { fprintf(stdout,"%ds ",s); ; }
   if(d+h+m+s <= 0) { fprintf(stdout,"0s "); }
   fprintf(stdout,"\n");
 }

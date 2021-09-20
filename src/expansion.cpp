@@ -161,6 +161,7 @@ expand_iter estimate_group(group *g)
     }
     a = accrue_a;
   }
+  g->estimate = a;
   return a;
 }
 
