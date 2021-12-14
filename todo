@@ -4,6 +4,9 @@
 - - permutations, where an option has potential to be an empty string, should not waste time testing "every possible position of that empty string"
 
 - features:
+- - swizzle modification
+- - select (guarantee at least one "select"-tagged option is selected; good for modifying an already exhausted seed without wasting previous attempts)
+- - countability (required for seek), at least with core features
 - - should warn re: high permutation counts
 - - enable "realtime permutation" (which eats cost of inline recursion, but allows for iterative permutation w/o eating up-front memory reqs)
 - - or at the very least, estimates w/ recursion
