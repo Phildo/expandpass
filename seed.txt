@@ -1,12 +1,15 @@
-(
+#Example Seed
+
+(                                       # '(' tries all orderings of its contents
   "Jean"
-  <
+  <                                     # '<' will concatenate its contents
     { "M" "m" } "arry" { "M" "m" } "e"
   >
 )
 "123"
-[-s1 "0123456789"]
-{
+[-s1 "0123456789"]                      # modification applies to "123". the '-' means "try without modification", the 's1' means "substitute one character"
+{                                       # '{' tries each of its contents independently
+-                                       # '-' is shorthand for the empty string (identical to "")
 "!"
 "!!"
 }

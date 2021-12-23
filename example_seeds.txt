@@ -1,33 +1,72 @@
-< sequence
-{ option
-" content
-[ deviation APPLIES TO PREVIOUS GROUPING
+# List of example seeds and their yields.
+# Examples are wrapped into a large option group,
+# so running this whole file as a seed
+# will output all of the examples one after the other.
 
-IMPLICIT <> around whole thing
+# CHEAT SHEET:
+# " string       (atom)
+# < sequence     (concatenate)
+# { option       (choose one)
+# ( permutation  (shuffle)
+# [ modification (modify previous group)
+# # comment      (ignored)
+
+# Seeds are normally wrapped with an implicit global <>,
+# I have explicitly wrapped each here to put them all in the same file.
+
+{
+
+# --------------------------------------
+
+< # EXAMPLE 1 (string)
 
 "banana"
-banana
+
+> # EXAMPLE 1 YIELDS:
+# banana
+
+# --------------------------------------
+
+< # EXAMPLE 2 (sequence)
 
 <
 "apple"
 "orange"
 >
-appleorange
+
+> # EXAMPLE 2 YIELDS:
+# appleorange
+
+# --------------------------------------
+
+< # EXAMPLE 3 (option)
 
 {
 "apple"
 "orange"
 }
-apple
-orange
+
+> # EXAMPLE 3 YIELDS:
+# apple
+# orange
+
+# --------------------------------------
+
+< # EXAMPLE 4 (option + atom in implicit sequence)
 
 {
 "apple"
 "orange"
 }
 "123"
-apple123
-orange123
+
+> # EXAMPLE 4 YIELDS:
+# apple123
+# orange123
+
+# --------------------------------------
+
+< # EXAMPLE 5 (two options in implicit sequence)
 
 {
 "apple"
@@ -37,20 +76,36 @@ orange123
 "123"
 "abc"
 }
-apple123
-appleabc
-orange123
-orangeabc
+
+> # EXAMPLE 5 YIELDS:
+# apple123
+# appleabc
+# orange123
+# orangeabc
+
+# --------------------------------------
+
+< # EXAMPLE 6 (option with substitution)
 
 {
 "apple"
+"orange"
 }
 [
 s1"abcdefghijklmnopqrstuvwxyz"
 ]
-apple
-bpple
-cpple
-...
-applz
+
+> # EXAMPLE 6 YIELDS:
+# apple
+# bpple
+# cpple
+# ...
+# applz
+# arange
+# ...
+# orangz
+
+# --------------------------------------
+
+}
 

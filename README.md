@@ -90,6 +90,7 @@ The empty string can be specified as `""`, or an unquoted `-`
 Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"World\""` will yield `Hello"World"`). To include `\`, escape it with `\\`.
 
 The next layer up is an **Option Group**, specified by `{}`
+*Choose one ...*
 
 Seed File:
 ```
@@ -106,6 +107,7 @@ apple
 ```
 
 Next, **Sequence Group**, specified with `<>`
+*Concatenate ...*
 
 Seed File:
 ```
@@ -121,6 +123,7 @@ bananaapple
 ```
 
 Finally, a **Permutation Group**, specified with `()`
+*Shuffle ...*
 
 Seed File:
 ```
@@ -137,6 +140,7 @@ applebanana
 ```
 
 Then, as a special case, is the **Modifier**, specified with `[]`
+*Modify the previous group by ...*
 Note- a modifier applies to the grouping *before* the modifier. (See MODIFIER section for details w/ syntax)
 
 Seed File:
@@ -170,16 +174,17 @@ Seed File:
 "123"
 [-s1 "0123456789"]
 {
+-
 "!"
 "!!"
 }
 ```
 
 Output:
-(run it yourself! it's already in `seed.txt`- it should output 496 lines)
+(run it yourself! it's already in `seed.txt`- it should output 744 lines)
 
-NOTE- seed files have a default implicit Sequence Group `<>` specified around it.
-
+NOTE- seeds are implicitly are wrapped by a global Sequence Group (`<...>`).
+NOTE- you can leave comments with an unquoted `#` character. Everything proceeding the `#` on that line will be ignored.
 
 # MODIFIERS:
 
