@@ -75,12 +75,12 @@ but they were built with only my simple environment in mind.
 
 The most basic atom of a seed is a **String**, specified with `""`
 
-Seed File:
+  Seed File:
 ```
 "banana"
 ```
 
-Output:
+  Output:
 ```
 banana
 ```
@@ -90,9 +90,10 @@ The empty string can be specified as `""`, or an unquoted `-`
 Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"World\""` will yield `Hello"World"`). To include `\`, escape it with `\\`.
 
 The next layer up is an **Option Group**, specified by `{}`
+
 *Choose one ...*
 
-Seed File:
+  Seed File:
 ```
 {
 "banana"
@@ -100,16 +101,17 @@ Seed File:
 }
 ```
 
-Output:
+  Output:
 ```
 banana
 apple
 ```
 
 Next, **Sequence Group**, specified with `<>`
+
 *Concatenate ...*
 
-Seed File:
+  Seed File:
 ```
 <
 "banana"
@@ -117,15 +119,16 @@ Seed File:
 >
 ```
 
-Output:
+  Output:
 ```
 bananaapple
 ```
 
 Finally, a **Permutation Group**, specified with `()`
+
 *Shuffle ...*
 
-Seed File:
+  Seed File:
 ```
 (
 "banana"
@@ -133,23 +136,25 @@ Seed File:
 )
 ```
 
-Output:
+  Output:
 ```
 bananaapple
 applebanana
 ```
 
 Then, as a special case, is the **Modifier**, specified with `[]`
+
 *Modify the previous group by ...*
+
 Note- a modifier applies to the grouping *before* the modifier. (See MODIFIER section for details w/ syntax)
 
-Seed File:
+  Seed File:
 ```
 "banana"
 [ s1 "abcdefghijklmnopqrstuvwxyz" ]
 ```
 
-Output:
+  Output:
 ```
 aanana
 banana
@@ -165,7 +170,7 @@ bananz
 
 But the real power of this comes from the fact that all of these things can be arbitrarily nested. For example:
 
-Seed File:
+  Seed File:
 ```
 (
   "Jean"
@@ -180,7 +185,7 @@ Seed File:
 }
 ```
 
-Output:
+  Output:
 (run it yourself! it's already in `seed.txt`- it should output 744 lines)
 
 NOTE- seeds are implicitly are wrapped by a global Sequence Group (`<...>`).
