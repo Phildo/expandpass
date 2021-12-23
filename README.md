@@ -89,9 +89,9 @@ Output:
 banana
 ```
 
-The empty string can be specified as `""`, or an unquoted `-`
+Note: The empty string can be specified as `""`, or an unquoted `-`
 
-Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"World\""` will yield `Hello"World"`). To include `\`, escape it with `\\`.
+Note: To include `"` within a string, escape it with `\"` (example:`"Hello \"World\""` will yield `Hello "World"`). To include `\`, escape it with `\\`.
 
 ---------------------
 
@@ -130,7 +130,7 @@ bananaapple
 
 ---------------------
 
-**(Permutation Group)**: Shuffle member order, specified with `()`
+**(Permutation Group)**: Shuffle member order and concatenate, specified with `()`
 
 Seed:
 ```
@@ -203,7 +203,8 @@ Note: you can leave comments with an unquoted `#` character. Everything proceedi
 
 # MODIFIERS:
 
-There are 5 types of modifications: **'i'njections**, **'s'ubstitutions**, **'d'eletions**, **s'm'art substitutions**, and **'c'opies**
+There are 5 types of modifications: **'i'njections**, **'s'ubstitutions**, **'d'eletions**, **s'm'art substitutions**, and **'c'opies**.
+
 For the sake of simplicity, I'll assume each modification needs to be on its own line (though that isn't syntactually enforced)
 
 You specify that you want to modify the previously specified group (or string) with `[]`, and you specify what the modification should be within.
