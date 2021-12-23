@@ -113,7 +113,7 @@ apple
 
 ---------------------
 
-**<Sequence Group>**: Concatenate members, specified with `<>`
+**\<Sequence Group\>**: Concatenate members, specified with `<>`
 
 Seed:
 ```
