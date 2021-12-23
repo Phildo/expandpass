@@ -73,14 +73,18 @@ but they were built with only my simple environment in mind.
 
 # THE SEED:
 
-**String**: The most basic atom of a seed, specified with `""`
+The "seed" is the nested input to expandpass, describing the desired expansion.
 
-- Seed File:
+---------------------
+
+**"String"**: The most basic atom of a seed, specified with `""`
+
+Seed:
 ```
 "banana"
 ```
 
-- Output:
+Output:
 ```
 banana
 ```
@@ -91,9 +95,9 @@ Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"Worl
 
 ---------------------
 
-**Option Group**: Choose a member, specified by `{}`
+**{Option Group}**: Choose a member, specified by `{}`
 
-- Seed File:
+Seed:
 ```
 {
 "banana"
@@ -101,16 +105,17 @@ Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"Worl
 }
 ```
 
-- Output:
+Output:
 ```
 banana
 apple
 ```
+
 ---------------------
 
-**Sequence Group**: Concatenate members, specified with `<>`
+**<Sequence Group>**: Concatenate members, specified with `<>`
 
-- Seed File:
+Seed:
 ```
 <
 "banana"
@@ -118,15 +123,16 @@ apple
 >
 ```
 
-- Output:
+Output:
 ```
 bananaapple
 ```
+
 ---------------------
 
-**Permutation Group**: Shuffle member order, specified with `()`
+**(Permutation Group)**: Shuffle member order, specified with `()`
 
-- Seed File:
+Seed:
 ```
 (
 "banana"
@@ -134,24 +140,25 @@ bananaapple
 )
 ```
 
-- Output:
+Output:
 ```
 bananaapple
 applebanana
 ```
+
 ---------------------
 
-**Modifier**\*: Modify the *previous* group, specified with `[]`
+**[Modifier]**\*: Modify the *previous* group, specified with `[]`
 
 \*Modifiers are not "groups" themselves, but rather contain instructions to modify the previous group. (See MODIFIER section for details w/ syntax)
 
-- Seed File:
+Seed:
 ```
 "banana"
 [ s1 "abcdefghijklmnopqrstuvwxyz" ]
 ```
 
-- Output:
+Output:
 ```
 aanana
 banana
@@ -171,7 +178,7 @@ bananz
 
 The real power of the above groupings comes from the fact that all of these things can be arbitrarily nested. For example:
 
-- Seed File:
+Seed:
 ```
 (
   "Jean"
@@ -186,7 +193,8 @@ The real power of the above groupings comes from the fact that all of these thin
 }
 ```
 
-- Output:
+Output:
+
 (run it yourself! it's already in `seed.txt`- it should output 744 lines)
 
 Note: seeds are implicitly are wrapped by a global Sequence Group (`<...>`).
