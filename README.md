@@ -48,7 +48,7 @@ It can also be run (and behaves as expected) in standard unix-y way
 
 `-c # [progress_file]` Sets how often (default: never) to save progress to a progress file ("set Checkpoint"). Will output # passwords before writing progress to a file (also optionally specified; default: "seed.progress"). `expandpass -c 1000000 my_seed.progress`
 
-`-r [checkpoint_file]` Resume from optionally defined (default: seed.progress) progress file. NOTE- a progress file that was created with a different seed file will have unpredictable results. `expandpass -r my_seed.progress`
+`-r [checkpoint_file]` Resume from optionally defined (default: seed.progress) progress file. Note: a progress file that was created with a different seed file will have unpredictable results. `expandpass -r my_seed.progress`
 
 `--estimate [@600000]` Prints an estimation of number passwords generated from a given seed file, and prediction of how long it will take to enumerate through them at specified output/s (default: 600000). Note: approximates subgroup lengths in processing modifications; subject to error. `expandpass --estimate @7000`
 
@@ -89,6 +89,8 @@ The empty string can be specified as `""`, or an unquoted `-`
 
 Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"World\""` will yield `Hello"World"`). To include `\`, escape it with `\\`.
 
+---------------------
+
 **Option Group**: Choose a member, specified by `{}`
 
 - Seed File:
@@ -104,6 +106,7 @@ Note: To include `"` within a string, escape it with `\"` (example:`"Hello\"Worl
 banana
 apple
 ```
+---------------------
 
 **Sequence Group**: Concatenate members, specified with `<>`
 
@@ -119,6 +122,7 @@ apple
 ```
 bananaapple
 ```
+---------------------
 
 **Permutation Group**: Shuffle member order, specified with `()`
 
@@ -135,6 +139,7 @@ bananaapple
 bananaapple
 applebanana
 ```
+---------------------
 
 **Modifier**\*: Modify the *previous* group, specified with `[]`
 
@@ -160,7 +165,11 @@ bcnana
 bananz
 ```
 
-But the real power of this comes from the fact that all of these things can be arbitrarily nested. For example:
+---------------------
+
+**Put it together**:
+
+The real power of the above groupings comes from the fact that all of these things can be arbitrarily nested. For example:
 
 - Seed File:
 ```
@@ -180,8 +189,9 @@ But the real power of this comes from the fact that all of these things can be a
 - Output:
 (run it yourself! it's already in `seed.txt`- it should output 744 lines)
 
-NOTE- seeds are implicitly are wrapped by a global Sequence Group (`<...>`).
-NOTE- you can leave comments with an unquoted `#` character. Everything proceeding the `#` on that line will be ignored.
+Note: seeds are implicitly are wrapped by a global Sequence Group (`<...>`).
+
+Note: you can leave comments with an unquoted `#` character. Everything proceeding the `#` on that line will be ignored.
 
 # MODIFIERS:
 
@@ -311,7 +321,7 @@ s1d1 "ABC"
 ...
 ```
 
-NOTE: THIS WILL NOT GUARANTEE TOTAL UNIQUENESS. Deleting the first letter and substituting the second for "A" is identical to deleting the second letter and substituting the first. Combined modifications can thus be redundant.
+Note: THIS WILL NOT GUARANTEE TOTAL UNIQUENESS. Deleting the first letter and substituting the second for "A" is identical to deleting the second letter and substituting the first. Combined modifications can thus be redundant.
 
 You can compose modifications in sequence as well:
 
@@ -334,7 +344,7 @@ yields:
 ..
 ```
 
-NOTE: new modifications in sequence are delineated by either newlines, or a defined gamut. So, the previous seed could alternately be specified as:
+Note: new modifications in sequence are delineated by either newlines, or a defined gamut. So, the previous seed could alternately be specified as:
 
 ```
 "banana" [ d1 "" s1 "ABC" ]
@@ -352,7 +362,7 @@ d1
 
 will ensure `banana` is printed unmodified once before going into the modifications.
 
-NOTE: The - is a guaranteed single-modification (doesn't need further delineation). So you could identically specify `"banana"[-d1]`
+Note: The - is a guaranteed single-modification (doesn't need further delineation). So you could identically specify `"banana"[-d1]`
 
 
 # PERFORMANCE:
@@ -375,7 +385,7 @@ sys	0m0.020s
 
 on a 2014 Macbook Air, 1.4 GHz Intel Core i5. This comes out to ~2M lines/s.
 
-Note- There is room for performance improvement. But until I have reason, I have no plan to continue working on this aspect.
+Note: There is room for performance improvement. But until I have reason, I have no plan to continue working on this aspect.
 That said, some ideas/next steps would be:
 
 - Cache supgroup output for blit when iteration occurs elsewhere.
