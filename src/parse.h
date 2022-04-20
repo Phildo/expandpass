@@ -3,7 +3,7 @@
 
 #include "expand.h"
 
-static const int max_read_line_len = 1024;
+static const int max_read_line_len = 1024*10;
 
 static const int ERROR_NULL                      =  0;
 static const int ERROR_EOF                       =  1;

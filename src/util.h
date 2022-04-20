@@ -10,6 +10,7 @@
 #include <unistd.h> //for isatty()
 #endif //!_WIN32
 
+static const int max_util_read_line_len = 1024*10;
 static const int max_sprintf_len = 1024;
 
 //#define BOGUS_SAFETY //"safe" functions just quit on anything funky (allows compilation on VS without complaint)
@@ -36,7 +37,7 @@ void *safe_realloc(void *ptr, size_t size)
 }
 char *safe_strcpy(char *dst, char *src)
 {
-  errno_t ret = strcpy_s(dst,max_read_line_len,src); //this is extra bogus; does NOT protect against overflow!
+  errno_t ret = strcpy_s(dst,max_util_read_line_len,src); //this is extra bogus; does NOT protect against overflow!
   if(ret)
   {
     fprintf(stderr,"strcpy failed");
@@ -96,14 +97,14 @@ int safe_fscanf(FILE *const stream, const char *const fmt, ...)
 #ifdef _WIN32
 size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of this c11 api
 {
-  const int bsize = max_read_line_len;
-  char buffer[bsize];
+  const int bsize = max_util_read_line_len-1;
+  char buffer[bsize+1];
   if(fgets(buffer,*n,stream) == 0) return 0;
   for(int i = 0; i < bsize; i++)
   {
     if(buffer[i] == '\n' || buffer[i] == '\0')
     {
-      if(i == bsize) { fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)"); exit(1); }
+      if(i == bsize) { fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)\r\n"); exit(1); }
       int len = i+1;
       char hold = buffer[len];
       buffer[len] = '\0';
@@ -121,7 +122,7 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
       return len+1;
     }
   }
-  fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)"); exit(1);
+  fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)\r\n"); exit(1);
 }
 #endif
 
