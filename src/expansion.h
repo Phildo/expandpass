@@ -4,7 +4,7 @@
 #include "util.h"
 
 static const int version_maj = 0;
-static const int version_min = 25;
+static const int version_min = 26;
 
 static const int max_pass_len = 300;
 static const int max_tag_count = 16;
