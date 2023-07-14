@@ -351,7 +351,6 @@ void propagate_countability(group *g)
 expand_iter state_from_countable_group(group *g)
 {
   expand_iter state = 0;
-  expand_iter tmp = 0;
   expand_iter mul = 0;
   switch(g->type)
   {

@@ -30,4 +30,3 @@ void zero_progress_group(group *g);
 void zero_progress_modifications(group *g);
 
 #endif //EXPAND_H
-

@@ -61,4 +61,3 @@ void cache_permute_indices_to(int n)
     */
   }
 }
-

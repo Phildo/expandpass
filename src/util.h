@@ -10,8 +10,8 @@
 #include <unistd.h> //for isatty()
 #endif //!_WIN32
 
-static const int max_util_read_line_len = 1024*10;
-static const int max_sprintf_len = 1024;
+const int max_util_read_line_len = 1024*10;
+const int max_sprintf_len = 1024;
 
 //#define BOGUS_SAFETY //"safe" functions just quit on anything funky (allows compilation on VS without complaint)
 #ifdef BOGUS_SAFETY
@@ -49,7 +49,7 @@ int safe_sprintf(char *buff, const char *const fmt, ...)
 {
   va_list arg;
   va_start(arg,fmt);
-  char const *vfmt = va_arg(arg, const char *const);
+  //char const *vfmt = va_arg(arg, const char *const);
   int ret = vsprintf_s(buff, max_sprintf_len, fmt, arg);
   if(ret < 0)
   {
@@ -75,7 +75,7 @@ int safe_fscanf(FILE *const stream, const char *const fmt, ...)
 {
   va_list arg;
   va_start(arg,fmt);
-  char const *vfmt = va_arg(arg, const char *const);
+  //char const *vfmt = va_arg(arg, const char *const);
   int ret = fscanf_s(stream,fmt,arg);
   if(ret == 0 || ret == EOF)
   {
@@ -114,11 +114,11 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
       {
         if(buffer[i] == '\0')
         {
-          fseek(stream,-(i-len),SEEK_CUR);//rewind
+          if(i != len) fseek(stream,-(i-len),SEEK_CUR);//rewind
           return len+1;
         }
       }
-      fseek(stream,-(bsize-len),SEEK_CUR);//rewind
+      if(i != len) fseek(stream,-(bsize-len),SEEK_CUR);//rewind
       return len+1;
     }
   }
@@ -179,4 +179,3 @@ inline unsigned long long int permcomb(int len, int choose, int option)
 }
 
 #endif //UTIL_H
-

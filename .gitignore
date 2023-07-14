@@ -1,5 +1,7 @@
 .gdb_history
 .vscode
+.vs
+*.10x
 .DS_Store
 tags
 expandpass
@@ -8,4 +10,7 @@ password.txt
 build
 *.exe
 *.obj
+*.ilk
+*.dbg
+*.pdb
 

@@ -27,4 +27,3 @@ void zero_validation(validation *v)
 int validate(validation *v, char *passholder, int len);
 
 #endif //VALIDATE_H
-

@@ -3,21 +3,21 @@
 
 #include "expand.h"
 
-static const int max_read_line_len = 1024*10;
+const int max_read_line_len = 1024*10;
 
-static const int ERROR_NULL                      =  0;
-static const int ERROR_EOF                       =  1;
-static const int ERROR_BADEOF                    =  2;
-static const int ERROR_INVALID_LINE              =  3;
-static const int ERROR_INVALID_STRING            =  4;
-static const int ERROR_INVALID_MODIFICATION      =  5;
-static const int ERROR_UNTERMINATED_STRING       =  6;
-static const int ERROR_UNPARENTED_MODIFICATION   =  7;
-static const int ERROR_INVALID_NULL_MODIFICATION =  8;
-static const int ERROR_MODIFICATION_EMPTY_GAMUT  =  9;
-static const int ERROR_NULL_CHILD                = 10;
-static const int ERROR_TAG_RANGE                 = 11;
-static const int ERROR_TAG_SPECIFY               = 12;
+const int ERROR_NULL                      =  0;
+const int ERROR_EOF                       =  1;
+const int ERROR_BADEOF                    =  2;
+const int ERROR_INVALID_LINE              =  3;
+const int ERROR_INVALID_STRING            =  4;
+const int ERROR_INVALID_MODIFICATION      =  5;
+const int ERROR_UNTERMINATED_STRING       =  6;
+const int ERROR_UNPARENTED_MODIFICATION   =  7;
+const int ERROR_INVALID_NULL_MODIFICATION =  8;
+const int ERROR_MODIFICATION_EMPTY_GAMUT  =  9;
+const int ERROR_NULL_CHILD                = 10;
+const int ERROR_TAG_RANGE                 = 11;
+const int ERROR_TAG_SPECIFY               = 12;
 
 struct parse_error
 {
@@ -35,4 +35,3 @@ group *parse(FILE *fp, int unquoted);
 void print_tag(tag t, int u);
 
 #endif //PARSE_H
-

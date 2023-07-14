@@ -3,7 +3,7 @@
 
 char smart_sub(int i, char key)
 {
-  static char stub[2] = "a";
+  char stub[2] = "a";
   const char *c;
   switch(key)
   {

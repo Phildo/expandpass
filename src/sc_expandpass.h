@@ -58,4 +58,3 @@ void sc_expandpass_shutdown()
   clean_group_contents(g);
   free(g);
 }
-

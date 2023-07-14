@@ -3,12 +3,12 @@
 
 #include "util.h"
 
-static const int version_maj = 0;
-static const int version_min = 26;
+const int version_maj = 0;
+const int version_min = 27;
 
-static const int max_pass_len = 300;
-static const int max_tag_count = 16;
-static const int max_tag_stack = 4;
+const int max_pass_len = 300;
+const int max_tag_count = 16;
+const int max_tag_stack = 4;
 
 //tag = bitmask representing which tags present
 //tag_map = vertical binary count of # of each tag present (eg: "how many [3] tags stamped?" = bitwise concatenation of 3rd bit of each level in the stack) //LOL
@@ -126,4 +126,3 @@ void free_group_contents(group *g);
 void print_seed(group *g, int print_progress, int selected, int indent);
 
 #endif //EXPANSION_H
-

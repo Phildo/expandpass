@@ -1,7 +1,6 @@
 #include "parse.h"
 #include "util.h"
 
-
 int parse_child(FILE *fp, int unquoted, int *line_n, char *buff, char **b, group *g, group *prev_g, int depth, parse_error *er)
 {
   g->countable = 1; //until proven otherwise
@@ -473,4 +472,3 @@ group *parse(FILE *fp, int unquoted)
 
   return g;
 }
-
