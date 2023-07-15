@@ -106,20 +106,9 @@ size_t getline(char **lineptr, size_t *n, FILE *stream) //hack recreation of thi
     {
       if(i == bsize) { fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)\r\n"); exit(1); }
       int len = i+1;
-      char hold = buffer[len];
       buffer[len] = '\0';
       safe_strcpy(*lineptr,buffer);
-      buffer[len] = hold;
-      for(i++; i < bsize; i++)
-      {
-        if(buffer[i] == '\0')
-        {
-          if(i != len) fseek(stream,-(i-len),SEEK_CUR);//rewind
-          return len+1;
-        }
-      }
-      if(i != len) fseek(stream,-(bsize-len),SEEK_CUR);//rewind
-      return len+1;
+      return len;
     }
   }
   fprintf(stderr,"Error reading too large a line on windows (this is not officially supported with windows)\r\n"); exit(1);
